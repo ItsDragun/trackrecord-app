@@ -10,6 +10,8 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
+    <link rel="icon" type="image/png" href="portaltrack_logo.png" sizes="40x40">
+    
     <style>
         /* Modernized Color Palette */
         :root {
@@ -23,24 +25,23 @@
         }
         
         body { 
-            font-family: 'Poppins', sans-serif; /* NEW FONT */
+            font-family: 'Poppins', sans-serif; 
             margin: 0; 
             padding: 0; 
             background-color: var(--background-light); 
             display: flex;
             justify-content: center;
-            align-items: flex-start; /* Align to top */
+            align-items: flex-start; 
             min-height: 100vh;
-            padding: 0; /* Remove padding */
+            padding: 0; 
             box-sizing: border-box;
         }
         .container { 
-            /* REMOVED MAX-WIDTH AND FIXED SHADOW/PADDING FOR FULL-SCREEN LAYOUT */
             width: 100%;
             min-height: 100vh;
             padding: 30px; 
             background-color: var(--card-background); 
-            box-shadow: none; /* Removed box shadow */
+            box-shadow: none; 
             position: relative; 
             transition: margin-left 0.3s;
         }
@@ -50,11 +51,25 @@
             margin-left: 280px;
         }
 
+        /* Styling for the new header structure */
+        .header-content {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #E0E0E0; 
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        #main-logo {
+            width: 40px; 
+            height: 40px;
+            margin-right: 10px;
+        }
+
         h1 { 
             color: var(--primary-color); 
-            border-bottom: 1px solid #E0E0E0; 
-            padding-bottom: 15px; 
-            margin-top: 0;
+            padding-bottom: 0; 
+            margin: 0; 
             font-weight: 300; 
             letter-spacing: 1px;
             font-size: 2em;
@@ -131,7 +146,7 @@
         /* --- VIEW MANAGEMENT --- */
         .view { 
             display: none; 
-            padding: 20px 40px; /* Add internal padding to content */
+            padding: 20px 40px; 
             max-width: 100%;
         }
         .view.active { 
@@ -141,7 +156,7 @@
         /* --- AUTH VIEW SPECIFIC FIXES --- */
         #auth-view {
             max-width: 450px; 
-            margin: 100px auto 0; /* Center login form */
+            margin: 100px auto 0; 
             background: var(--card-background);
             padding: 30px;
             border-radius: 12px;
@@ -184,7 +199,7 @@
         .sidebar-nav {
             position: fixed;
             top: 0;
-            left: -280px; /* Hidden state */
+            left: -280px; 
             width: 280px;
             height: 100%;
             background-color: var(--card-background); 
@@ -196,7 +211,7 @@
             flex-direction: column;
         }
         .sidebar-nav.open {
-            left: 0; /* Open state */
+            left: 0; 
         }
         .sidebar-header {
             padding: 10px 20px 20px;
@@ -254,7 +269,7 @@
             color: white;
             padding: 10px 15px;
             font-size: 1.2em;
-            border-radius: 0 0 8px 0; /* Only bottom-left corner */
+            border-radius: 0 0 8px 0; 
             position: fixed;
             top: 0;
             left: 0;
@@ -339,15 +354,15 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
         #test-output-content .user-message {
-            background-color: #E3F2FD; /* Light Blue */
+            background-color: #E3F2FD; 
             text-align: left; 
             border-left: 3px solid var(--primary-color);
         }
         #test-output-content .ai-message {
-            background-color: #F1F8E9; /* Light Green/Gray */
+            background-color: #F1F8E9; 
             text-align: left;
             border-left: 3px solid var(--success-color);
-            white-space: pre-wrap; /* For markdown/preformatted text */
+            white-space: pre-wrap; 
         }
         
         /* Confirmation Modal Specifics */
@@ -380,7 +395,7 @@
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .view {
-                padding: 20px 20px; /* Less padding on small screens */
+                padding: 20px 20px; 
             }
             .container {
                 padding: 0;
@@ -399,7 +414,12 @@
     <div id="sidebar-nav" class="sidebar-nav">
         <div class="sidebar-header">
             <button onclick="closeSidebar()" class="secondary">✖</button>
-            <h2 style="margin:0; color:var(--primary-color); font-weight: 500;">PortalTrack</h2>
+            
+            <div style="display:flex; align-items:center;">
+                <img src="portaltrack_logo.png" alt="PT Logo" style="margin-right: 8px; width: 20px; height: 20px;">
+                <h2 style="margin:0; color:var(--primary-color); font-weight: 500;">PortalTrack</h2>
+            </div>
+            
         </div>
         
         <button onclick="showView('dashboard'); closeSidebar();" id="nav-dashboard" class="sidebar-link">🏠 Dashboard</button>
@@ -412,7 +432,10 @@
     </div>
     
     <div class="container">
-        <h1>PortalTrack 📊</h1>
+        <div class="header-content">
+            <img src="portaltrack_logo.png" alt="PortalTrack Logo" id="main-logo">
+            <h1>PortalTrack</h1>
+        </div>
         <div id="status-message"></div>
         
         <div id="auth-view" class="view active">
