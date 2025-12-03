@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TrackRecord - Academic Progress Tracker</title>
+    <title>PortalTrack - Academic Progress Tracker</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         /* Modernized Color Palette */
@@ -15,32 +17,39 @@
             --secondary-color: #90A4AE; /* Soft Gray */
             --success-color: #4CAF50; /* Green */
             --danger-color: #EF5350; /* Red */
-            --background-light: #ECEFF1; /* Light Gray Background */
+            --background-light: #F4F7F9; /* Very Light Blue-Gray Background */
             --card-background: #ffffff;
             --accent-color: #FFB300; /* Amber */
         }
         
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Poppins', sans-serif; /* NEW FONT */
             margin: 0; 
             padding: 0; 
             background-color: var(--background-light); 
             display: flex;
             justify-content: center;
-            align-items: center; 
+            align-items: flex-start; /* Align to top */
             min-height: 100vh;
-            padding: 20px; 
+            padding: 0; /* Remove padding */
             box-sizing: border-box;
         }
         .container { 
-            max-width: 900px;
+            /* REMOVED MAX-WIDTH AND FIXED SHADOW/PADDING FOR FULL-SCREEN LAYOUT */
             width: 100%;
+            min-height: 100vh;
             padding: 30px; 
             background-color: var(--card-background); 
-            border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); 
+            box-shadow: none; /* Removed box shadow */
             position: relative; 
+            transition: margin-left 0.3s;
         }
+        
+        /* Adjust container margins based on sidebar state */
+        .container-shifted {
+            margin-left: 280px;
+        }
+
         h1 { 
             color: var(--primary-color); 
             border-bottom: 1px solid #E0E0E0; 
@@ -48,6 +57,7 @@
             margin-top: 0;
             font-weight: 300; 
             letter-spacing: 1px;
+            font-size: 2em;
         }
         h2 { color: #333; margin-top: 25px; font-weight: 500;}
         h3 { 
@@ -55,7 +65,8 @@
             border-left: 4px solid var(--primary-color); 
             padding-left: 10px; 
             margin: 20px 0 15px; 
-            font-weight: 400;
+            font-weight: 500;
+            font-size: 1.2em;
         }
 
         /* Form Controls */
@@ -69,6 +80,7 @@
             box-sizing: border-box;
             transition: border-color 0.3s, box-shadow 0.3s;
             font-size: 1em;
+            font-family: 'Poppins', sans-serif;
         }
         input:focus, textarea:focus { 
             border-color: var(--primary-color); 
@@ -88,6 +100,7 @@
             font-weight: 500;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: background-color 0.3s, box-shadow 0.3s, transform 0.1s;
+            font-family: 'Poppins', sans-serif;
         }
         button:hover { 
             background-color: #1976D2; 
@@ -108,7 +121,7 @@
             padding: 12px; 
             margin-top: 15px; 
             border-radius: 8px; 
-            font-weight: bold; 
+            font-weight: 500; 
             opacity: 0.95;
             transition: opacity 0.3s;
         }
@@ -117,24 +130,29 @@
         
         /* --- VIEW MANAGEMENT --- */
         .view { 
-            display: none; /* All views hidden by default */
-            padding: 20px 0; 
+            display: none; 
+            padding: 20px 40px; /* Add internal padding to content */
+            max-width: 100%;
         }
         .view.active { 
-            display: block; /* Only active view is shown */
+            display: block; 
         }
 
         /* --- AUTH VIEW SPECIFIC FIXES --- */
         #auth-view {
-            max-width: 450px; /* Constrain auth form width for a cleaner look */
-            margin: 0 auto;
+            max-width: 450px; 
+            margin: 100px auto 0; /* Center login form */
+            background: var(--card-background);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
         .auth-buttons-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-top: 20px;
-            flex-wrap: wrap; /* Ensure responsiveness */
+            flex-wrap: wrap; 
         }
         .auth-buttons-left button {
             margin: 5px 10px 5px 0;
@@ -206,6 +224,7 @@
             border-radius: 0;
             transition: background-color 0.2s, color 0.2s;
             box-shadow: none;
+            font-weight: 400;
         }
         .sidebar-link:hover {
             background-color: var(--background-light);
@@ -213,7 +232,7 @@
             transform: none;
         }
         .sidebar-link.danger {
-            margin-top: auto; /* Push logout to bottom */
+            margin-top: auto; 
             border-top: 1px solid #E0E0E0;
             background-color: var(--danger-color);
             color: white;
@@ -230,17 +249,17 @@
 
         /* Menu Toggle Button */
         #menu-toggle {
-            display: none; /* Controlled by JS after login */
+            display: none; 
             background-color: var(--primary-color);
             color: white;
             padding: 10px 15px;
             font-size: 1.2em;
-            border-radius: 8px;
+            border-radius: 0 0 8px 0; /* Only bottom-left corner */
             position: fixed;
-            top: 15px;
-            left: 15px;
+            top: 0;
+            left: 0;
             z-index: 1001;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.2);
         }
 
         /* General UI Elements */
@@ -357,6 +376,19 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .view {
+                padding: 20px 20px; /* Less padding on small screens */
+            }
+            .container {
+                padding: 0;
+            }
+            #auth-view {
+                margin-top: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -367,7 +399,7 @@
     <div id="sidebar-nav" class="sidebar-nav">
         <div class="sidebar-header">
             <button onclick="closeSidebar()" class="secondary">✖</button>
-            <h2 style="margin:0; color:var(--primary-color); font-weight: 500;">TrackRecord</h2>
+            <h2 style="margin:0; color:var(--primary-color); font-weight: 500;">PortalTrack</h2>
         </div>
         
         <button onclick="showView('dashboard'); closeSidebar();" id="nav-dashboard" class="sidebar-link">🏠 Dashboard</button>
@@ -380,7 +412,7 @@
     </div>
     
     <div class="container">
-        <h1>TrackRecord 📊</h1>
+        <h1>PortalTrack 📊</h1>
         <div id="status-message"></div>
         
         <div id="auth-view" class="view active">
@@ -691,7 +723,7 @@ Mark Johnson"></textarea>
             parts: [{ text: "Welcome! I'm ready to help you create a test. Start by describing the topic, grade level, and format you need (e.g., '5 multiple choice questions on the solar system for 6th grade')." }]
         }
     ];
-    let parsedStudentBatch = []; // <--- Global for storing AI-parsed student data
+    let parsedStudentBatch = []; 
 
     // Utility Functions
     const statusMessageDiv = document.getElementById('status-message');
@@ -778,18 +810,37 @@ Mark Johnson"></textarea>
     window.toggleSidebar = () => {
         const sidebar = document.getElementById('sidebar-nav');
         const overlay = document.getElementById('sidebar-overlay');
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('open');
+        const container = document.querySelector('.container');
+
+        if (sidebar.classList.contains('open')) {
+            // Close
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+            container.classList.remove('container-shifted');
+        } else {
+            // Open
+            sidebar.classList.add('open');
+            overlay.classList.add('open');
+            container.classList.add('container-shifted');
+        }
     }
 
     window.openSidebar = () => {
-        document.getElementById('sidebar-nav').classList.add('open');
-        document.getElementById('sidebar-overlay').classList.add('open');
+        const sidebar = document.getElementById('sidebar-nav');
+        const overlay = document.getElementById('sidebar-overlay');
+        const container = document.querySelector('.container');
+        sidebar.classList.add('open');
+        overlay.classList.add('open');
+        container.classList.add('container-shifted');
     }
 
     window.closeSidebar = () => {
-        document.getElementById('sidebar-nav').classList.remove('open');
-        document.getElementById('sidebar-overlay').classList.remove('open');
+        const sidebar = document.getElementById('sidebar-nav');
+        const overlay = document.getElementById('sidebar-overlay');
+        const container = document.querySelector('.container');
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+        container.classList.remove('container-shifted');
     }
     
     const updateNavigationVisibility = () => {
@@ -1201,7 +1252,6 @@ Mark Johnson"></textarea>
         if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can add students.', true);
         if (!currentClassId) return showStatus('Please load a class first.', true);
         const name = document.getElementById('student-name').value;
-        // const studentId = document.getElementById('student-id').value; // REMOVED
 
         if (!name) {
             showStatus('Please enter student name.', true);
@@ -1416,7 +1466,6 @@ Mark Johnson"></textarea>
         }
         document.getElementById('edit-student-doc-id').value = studentDocId;
         document.getElementById('edit-student-name').value = student.name;
-        // document.getElementById('edit-student-unique-id').value = student.studentId; // REMOVED
         document.getElementById('edit-student-modal').style.display = 'flex';
     };
 
@@ -1428,7 +1477,6 @@ Mark Johnson"></textarea>
         if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can update student records.', true);
         const docId = document.getElementById('edit-student-doc-id').value;
         const newName = document.getElementById('edit-student-name').value;
-        // const newStudentId = document.getElementById('edit-student-unique-id').value; // REMOVED
 
         if (!docId || !newName) {
             showStatus('Please fill in the student name field for editing.', true);
@@ -1439,7 +1487,6 @@ Mark Johnson"></textarea>
             const studentRef = doc(db, "students", docId);
             await updateDoc(studentRef, {
                 name: newName,
-                // studentId: newStudentId, // REMOVED
                 updatedAt: new Date()
             });
             showStatus(`Student ${newName} updated successfully.`, false);
@@ -1451,7 +1498,7 @@ Mark Johnson"></textarea>
     };
 
     // ----------------------------------------------------------------------
-    // 3.B AI BATCH IMPORT FUNCTIONS (Modified for Name-Only Input)
+    // 3.B AI BATCH IMPORT FUNCTIONS
     // ----------------------------------------------------------------------
 
     window.openBatchImportModal = () => {
