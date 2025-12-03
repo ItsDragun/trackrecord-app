@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PortalTrack - Academic Progress Tracker</title>
     
+    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> 
     
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -177,6 +179,11 @@
             text-align: right;
             margin-top: 15px;
         }
+        .student-login-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #E0E0E0;
+        }
         /* --- END AUTH VIEW SPECIFIC FIXES --- */
 
         /* Sidebar Specific Styles */
@@ -311,6 +318,10 @@
             font-size: 8px;
             transition: width 0.5s ease;
         }
+        #student-dashboard-view .progress-container {
+            width: 100%;
+            max-width: 500px;
+        }
 
         /* Modal Styles */
         .modal-overlay {
@@ -362,7 +373,8 @@
             background-color: #F1F8E9; 
             text-align: left;
             border-left: 3px solid var(--success-color);
-            white-space: pre-wrap; 
+            /* Important: Allow Markdown HTML to render */
+            white-space: normal; 
         }
         
         /* Confirmation Modal Specifics */
@@ -422,7 +434,7 @@
             
         </div>
         
-        <button onclick="showView('dashboard'); closeSidebar();" id="nav-dashboard" class="sidebar-link">🏠 Dashboard</button>
+        <button onclick="showView('dashboard'); closeSidebar();" id="nav-dashboard" class="sidebar-link nav-item-teacher">🏠 Teacher Dashboard</button>
         <button onclick="showView('class-management'); closeSidebar();" id="nav-classes" class="sidebar-link nav-item-teacher">📚 Classes</button>
         <button onclick="showView('tracking'); closeSidebar();" id="nav-tracking" class="sidebar-link nav-item-teacher">📝 Tracking</button>
         <button onclick="openTestGeneratorModal(); closeSidebar();" id="nav-test-generator" class="sidebar-link nav-item-teacher">🧠 AI Test Generator</button>
@@ -441,7 +453,7 @@
         <div id="auth-view" class="view active">
             
             <div id="login-form">
-                <h2>Teacher Login</h2>
+                <h2>Teacher/Admin Login</h2>
                 <input type="email" id="login-email" placeholder="Email" required>
                 <input type="password" id="login-password" placeholder="Password" required>
                 
@@ -451,7 +463,7 @@
                         <button onclick="handlePasswordReset()" class="secondary">Forgot Password?</button>
                     </div>
                     <div class="auth-toggle">
-                        New user? <a href="#" onclick="toggleAuthMode('register')" style="color: var(--primary-color);">Create an Account</a>
+                        New teacher? <a href="#" onclick="toggleAuthMode('register')" style="color: var(--primary-color);">Create an Account</a>
                     </div>
                 </div>
             </div>
@@ -477,6 +489,15 @@
                     Already have an account? <a href="#" onclick="toggleAuthMode('login')" style="color: var(--primary-color);">Login Here</a>
                 </div>
             </div>
+
+            <!-- New Student Access Section -->
+            <div class="student-login-section">
+                <h2>Student Access</h2>
+                <p>Enter your unique Student ID to view your progress.</p>
+                <input type="text" id="student-access-id" placeholder="Enter Student ID (e.g., TEMP-456789)" required>
+                <button onclick="studentLogin()">View My Progress</button>
+            </div>
+            <!-- End Student Access Section -->
         </div>
         
         <div id="dashboard-view" class="view">
@@ -485,6 +506,20 @@
             <h3><span style="font-size:1.5em;">📚</span> Your Current Classes</h3>
             <div id="classes-list-dashboard">Loading classes...</div>
         </div>
+
+        <div id="student-dashboard-view" class="view">
+            <h2 id="student-dashboard-title">Student Progress for: (Loading...)</h2>
+            <p>Welcome! This is your personalized, read-only academic progress dashboard.</p>
+            
+            <h3 style="margin-top: 30px;">🎯 My Current Goal</h3>
+            <div id="student-goal-output">Loading Goal...</div>
+
+            <h3 style="margin-top: 30px;">📈 Weekly Performance Trend</h3>
+            <canvas id="student-performance-chart" style="max-height: 450px; margin-top: 20px;"></canvas>
+            
+            <button onclick="logout()" class="danger">🚪 Logout</button>
+        </div>
+
 
         <div id="admin-dashboard-view" class="view">
             <h2>Administrator Dashboard</h2>
@@ -578,7 +613,7 @@
             <select id="report-student-select">
                 <option value="">Select Student to View Chart</option>
             </select>
-            <button onclick="displayStudentChart()">📈 Show Progress Chart</button>
+            <button onclick="displayStudentChart('performance-chart')">📈 Show Progress Chart</button>
             <canvas id="performance-chart" style="max-height: 450px; margin-top: 20px;"></canvas>
 
             <hr>
@@ -588,7 +623,10 @@
             <button onclick="generateBroadsheet()">📄 Generate Broadsheet (PDF)</button>
         </div>
 
-    </div> <div id="edit-student-modal" class="modal-overlay">
+    </div> 
+    
+    <!-- Modals -->
+    <div id="edit-student-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Edit Student Information</h3>
             <input type="hidden" id="edit-student-doc-id">
@@ -736,6 +774,12 @@ Mark Johnson"></textarea>
     let currentUserRole = null; 
     let studentsData = {}; 
     let performanceChart; 
+    
+    // NEW STUDENT-SPECIFIC STATE
+    let currentStudentDocId = null; 
+    let currentStudentId = null; 
+    let currentStudentName = null;
+    
     let testChatHistory = [
         {
             role: "system",
@@ -848,15 +892,6 @@ Mark Johnson"></textarea>
         }
     }
 
-    window.openSidebar = () => {
-        const sidebar = document.getElementById('sidebar-nav');
-        const overlay = document.getElementById('sidebar-overlay');
-        const container = document.querySelector('.container');
-        sidebar.classList.add('open');
-        overlay.classList.add('open');
-        container.classList.add('container-shifted');
-    }
-
     window.closeSidebar = () => {
         const sidebar = document.getElementById('sidebar-nav');
         const overlay = document.getElementById('sidebar-overlay');
@@ -869,14 +904,16 @@ Mark Johnson"></textarea>
     const updateNavigationVisibility = () => {
         const isTeacher = currentUserRole === 'teacher';
         const isAdmin = currentUserRole === 'admin';
+        const isStudent = currentStudentDocId !== null;
 
+        // Teacher/Admin Navigation
         document.querySelectorAll('.nav-item-teacher').forEach(el => el.style.display = isTeacher ? 'block' : 'none');
-        
         const adminNav = document.getElementById('nav-admin-dashboard');
         if (adminNav) adminNav.style.display = isAdmin ? 'block' : 'none';
         
         // Control visibility of the menu button
         const menuToggle = document.getElementById('menu-toggle');
+        // Only show menu if a teacher/admin is logged in. Students don't use the sidebar.
         if (menuToggle) menuToggle.style.display = (isTeacher || isAdmin) ? 'block' : 'none';
     }
 
@@ -884,7 +921,6 @@ Mark Johnson"></textarea>
         // 1. Hide all views
         document.querySelectorAll('.view').forEach(view => {
             view.classList.remove('active');
-            // Explicitly set display: none to ensure hiding is enforced
             view.style.display = 'none'; 
         });
         
@@ -893,7 +929,6 @@ Mark Johnson"></textarea>
         const targetView = document.getElementById(targetViewId);
         if (targetView) {
             targetView.classList.add('active');
-            // Explicitly set display: block/flex (based on CSS class definition)
             targetView.style.display = ''; 
         }
 
@@ -909,11 +944,15 @@ Mark Johnson"></textarea>
         if (viewId === 'tracking' && currentClassId) {
             loadStudents();
         }
+        if (viewId === 'student-dashboard' && currentStudentDocId) {
+            loadStudentDashboard();
+        }
     };
     
     window.toggleAuthMode = (mode) => {
         document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
         document.getElementById('register-form').style.display = mode === 'register' ? 'block' : 'none';
+        document.getElementById('student-access-id').value = ''; // Clear student ID field
         showStatus(''); 
     };
 
@@ -927,14 +966,14 @@ Mark Johnson"></textarea>
                 <input type="text" id="register-school-code" placeholder="School Code (Required by Admin)" required>
             `;
         } else if (role === 'admin') {
-               container.innerHTML = `
+                container.innerHTML = `
                 <input type="text" id="admin-school-name" placeholder="School Name (e.g., Central High School)" required>
             `;
         }
     };
 
     // ----------------------------------------------------------------------
-    // 1. USER AUTHENTICATION
+    // 1. USER AUTHENTICATION (Teacher/Admin)
     // ----------------------------------------------------------------------
 
     onAuthStateChanged(auth, async (user) => {
@@ -949,20 +988,25 @@ Mark Johnson"></textarea>
                     const userData = userDocSnap.data();
                     
                     if (!userData.role || !userData.schoolId) {
-                        showStatus('User profile data incomplete. Please re-register or contact admin.', true);
+                        showStatus('User profile data incomplete. Logging out.', true);
                         currentSchoolId = null;
                         currentUserRole = null;
+                        await signOut(auth);
                         return;
                     }
                     
                     currentSchoolId = userData.schoolId;
                     currentUserRole = userData.role; 
+                    currentStudentDocId = null; // Clear student state on teacher login
+                    currentStudentId = null;
+                    currentStudentName = null;
                     showStatus(`Logged in as ${currentUserRole}.`, false);
 
                 } else {
-                    showStatus('User profile data missing. Please re-register.', true);
+                    showStatus('User profile data missing. Logging out.', true);
                     currentSchoolId = null;
                     currentUserRole = null;
+                    await signOut(auth);
                     return;
                 }
             } catch (error) {
@@ -985,14 +1029,17 @@ Mark Johnson"></textarea>
             if (!user.emailVerified) {
                 showStatus('Welcome! Please verify your email to ensure full account access.', true);
             }
-        } else {
+        } else if (!currentStudentDocId) {
+            // Only fall back to auth-view if neither teacher/admin NOR student is logged in
             currentUserId = null;
             currentSchoolId = null;
             currentUserRole = null;
-            updateNavigationVisibility(); // Hide menu toggle
+            currentStudentDocId = null;
+            currentStudentId = null;
+            currentStudentName = null;
+            updateNavigationVisibility(); 
             closeSidebar();
             
-            // Ensure only auth view is displayed when logged out
             window.showView('login'); 
             window.toggleAuthMode('login');
         }
@@ -1019,6 +1066,165 @@ Mark Johnson"></textarea>
             showStatus(`Login Failed: ${error.message}`, true);
         }
     };
+    
+    window.logout = async () => {
+        try {
+            if (currentUserId) {
+                await signOut(auth);
+                showStatus('Teacher/Admin Logged out successfully.', false);
+            } else if (currentStudentDocId) {
+                // Clear student-specific state on student logout
+                currentStudentDocId = null;
+                currentStudentId = null;
+                currentStudentName = null;
+                showStatus('Student Logged out successfully.', false);
+                window.showView('login');
+            }
+        } catch (error) {
+            showStatus(`Logout Failed: ${error.message}`, true);
+        }
+    };
+    
+    // ----------------------------------------------------------------------
+    // 1.B STUDENT LOGIN (ID-Only)
+    // ----------------------------------------------------------------------
+    
+    window.studentLogin = async () => {
+        const studentId = document.getElementById('student-access-id').value.trim();
+        if (!studentId) {
+            return showStatus('Please enter your Student ID.', true);
+        }
+        
+        try {
+            // Query the students collection using the unique Student ID
+            const q = query(collection(db, "students"), where("studentId", "==", studentId));
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                return showStatus('Login failed: Invalid Student ID.', true);
+            }
+            
+            // Student found - there should only be one result
+            const studentDoc = snap.docs[0];
+            const studentData = studentDoc.data();
+            
+            // Set student global state
+            currentStudentDocId = studentDoc.id;
+            currentStudentId = studentData.studentId;
+            currentStudentName = studentData.name;
+            
+            // Clear teacher state
+            currentUserId = null; 
+            currentUserRole = null;
+            
+            document.getElementById('student-access-id').value = '';
+            showStatus(`Welcome, ${currentStudentName}. Viewing progress dashboard.`, false);
+            window.showView('student-dashboard');
+            
+        } catch (error) {
+            showStatus(`Error loading student data: ${error.message}`, true);
+        }
+    }
+    
+    // ----------------------------------------------------------------------
+    // 1.C STUDENT DASHBOARD
+    // ----------------------------------------------------------------------
+    
+    let studentChart; // Dedicated chart variable for the student view
+
+    window.loadStudentDashboard = async () => {
+        if (!currentStudentDocId) return; // Should not happen if flow is correct
+
+        document.getElementById('student-dashboard-title').textContent = `Student Progress for: ${currentStudentName}`;
+        
+        // --- 1. Load Student Goal ---
+        try {
+            const studentRef = doc(db, "students", currentStudentDocId);
+            const studentSnap = await getDoc(studentRef);
+            const student = studentSnap.data();
+
+            const goal = student.goal || { targetScore: null, description: null };
+            const targetScore = goal.targetScore;
+            
+            document.getElementById('student-goal-output').innerHTML = '<p>Loading Performance Data...</p>'; 
+
+            // --- 2. Load Performance Data ---
+            const performanceQ = query(
+                collection(db, "performanceRecords"), 
+                // FIX: Use the unique studentId string (currentStudentId) 
+                // instead of the Firestore document ID (currentStudentDocId)
+                where("studentId", "==", currentStudentId)
+            );
+            const performanceSnap = await getDocs(performanceQ);
+
+            let rawData = [];
+            performanceSnap.forEach(doc => rawData.push(doc.data()));
+
+            const scores = rawData.map(r => r.score).filter(s => s !== null && s !== undefined);
+            const currentAvg = scores.length > 0 ? (scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
+            
+            let goalHtml = `<div class="goal-status" style="color: var(--secondary-color);">No Goal Set by Teacher.</div>`;
+            if (targetScore) {
+                const progressPercent = Math.min(100, (currentAvg / targetScore) * 100).toFixed(0);
+                const isComplete = currentAvg >= targetScore;
+                
+                goalHtml = `
+                    <div class="goal-status" style="color: ${isComplete ? 'var(--success-color)' : 'var(--primary-color)'};">
+                        <strong>Goal: ${goal.description || 'Target Score'}</strong>
+                    </div>
+                    <small>Average Score: ${currentAvg.toFixed(1)} / Target: ${targetScore}</small>
+                    <div class="progress-container">
+                        <div class="progress-bar" style="width: ${progressPercent}%; background-color: ${isComplete ? 'var(--success-color)' : 'var(--accent-color)'};">${progressPercent}%</div>
+                    </div>
+                `;
+            }
+            document.getElementById('student-goal-output').innerHTML = goalHtml;
+
+            // --- 3. Render Chart ---
+            const scoresMap = {};
+            rawData.forEach(data => {
+                scoresMap[parseInt(data.week)] = data.score || 0; 
+            });
+
+            const weeks = Object.keys(scoresMap).map(Number).sort((a, b) => a - b);
+            const scoreData = weeks.map(week => scoresMap[week]);
+            const weekLabels = weeks.map(w => `Week ${w}`);
+
+            const ctx = document.getElementById('student-performance-chart').getContext('2d');
+
+            if (studentChart) {
+                studentChart.destroy();
+            }
+
+            studentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: weekLabels,
+                    datasets: [{
+                        label: 'My Weekly Scores',
+                        data: scoreData,
+                        borderColor: 'var(--primary-color)',
+                        backgroundColor: 'rgba(30, 136, 229, 0.2)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true, max: 100, title: { display: true, text: 'Score (%)' } },
+                        x: { title: { display: true, text: 'Week Number' } }
+                    },
+                    plugins: { title: { display: true, text: `${currentStudentName}'s Academic Progress Trend` } }
+                }
+            });
+
+        } catch (error) {
+            document.getElementById('student-goal-output').innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
+            console.error('Student Dashboard Load Error:', error);
+        }
+    }
+
 
     window.unifiedRegister = async () => {
         const role = document.getElementById('register-role').value;
@@ -1064,14 +1270,14 @@ Mark Johnson"></textarea>
             const user = userCredential.user;
 
             if (finalRole === 'admin') {
-                 schoolCode = Math.random().toString(36).substring(2, 8).toUpperCase(); 
-                 const schoolRef = await addDoc(collection(db, "schools"), {
-                    name: schoolName,
-                    code: schoolCode,
-                    adminId: user.uid,
-                    createdAt: new Date()
-                });
-                schoolDocId = schoolRef.id;
+                   schoolCode = Math.random().toString(36).substring(2, 8).toUpperCase(); 
+                   const schoolRef = await addDoc(collection(db, "schools"), {
+                        name: schoolName,
+                        code: schoolCode,
+                        adminId: user.uid,
+                        createdAt: new Date()
+                    });
+                    schoolDocId = schoolRef.id;
             }
             
             const userProfileRef = doc(db, "users", user.uid);
@@ -1099,14 +1305,6 @@ Mark Johnson"></textarea>
     };
 
 
-    window.logout = async () => {
-        try {
-            await signOut(auth);
-            showStatus('Logged out successfully.', false);
-        } catch (error) {
-            showStatus(`Logout Failed: ${error.message}`, true);
-        }
-    };
     
     window.handlePasswordReset = async () => {
         const email = document.getElementById('login-email').value;
@@ -1281,13 +1479,13 @@ Mark Johnson"></textarea>
             return;
         }
         
-        // Generate a non-UI student ID (e.g., timestamp based) for the database structure
-        const autoGeneratedId = `TEMP-${Date.now().toString().slice(-6)}`;
+        // Generate a unique, user-facing student ID
+        const uniqueId = `PT-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
         try {
             await addDoc(collection(db, "students"), {
                 name: name,
-                studentId: autoGeneratedId, // Use auto-generated ID
+                studentId: uniqueId, // Store the unique, user-facing ID
                 classId: currentClassId,
                 schoolId: currentSchoolId, 
                 teacherId: currentUserId, 
@@ -1296,7 +1494,7 @@ Mark Johnson"></textarea>
                 createdAt: new Date()
             });
             document.getElementById('student-name').value = '';
-            showStatus(`Student "${name}" added.`, false);
+            showStatus(`Student "${name}" added. ID: ${uniqueId}`, false);
             loadStudents();
         } catch (error) {
             showStatus(`Error adding student: ${error.message}`, true);
@@ -1382,11 +1580,13 @@ Mark Johnson"></textarea>
             
             performanceSnap.forEach(d => {
                 const data = d.data(); 
-                if (!performanceMap[data.studentId]) {
-                    performanceMap[data.studentId] = [];
+                // Use studentDocId (Firestore document ID) as key for performance mapping
+                const studentDocId = d.data().studentId; 
+                if (!performanceMap[studentDocId]) {
+                    performanceMap[studentDocId] = [];
                 }
                 if (data.score !== null && data.score !== undefined) {
-                    performanceMap[data.studentId].push(data.score);
+                    performanceMap[studentDocId].push(data.score);
                 }
             });
 
@@ -1396,13 +1596,14 @@ Mark Johnson"></textarea>
             studentsSnap.forEach((d) => {
                 const student = d.data();
                 const studentDocId = d.id;
-                studentsData[studentDocId] = student; 
+                studentsData[studentDocId] = { ...student, docId: studentDocId }; 
                 
                 // Populate select options
-                studentOptions.push(`<option value="${studentDocId}">${student.name}</option>`);
+                studentOptions.push(`<option value="${studentDocId}">${student.name} (${student.studentId})</option>`);
 
                 // --- Goal Tracking Logic ---
-                const scores = performanceMap[studentDocId] || [];
+                // Note: Performance Map now uses student.studentId (unique ID) as key, but the document ID is d.id
+                const scores = performanceMap[student.studentId] || []; 
                 const currentAvg = scores.length > 0 ? (scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
                 
                 const goal = student.goal || { targetScore: null, description: null };
@@ -1435,6 +1636,7 @@ Mark Johnson"></textarea>
                     <div class="student-card" id="student-${studentDocId}">
                         <div class="student-details">
                             <strong>${student.name}</strong> 
+                            <small style="display: block; margin-top: 5px;">ID: ${student.studentId}</small>
                             <div style="margin-top: 10px;">${goalHtml}</div>
                             <div style="margin-top: 10px;">
                                 <small>Parent Access Token: ${tokenDisplay}</small>
@@ -1633,12 +1835,12 @@ Mark Johnson"></textarea>
 
         // 1. Iterate through the parsed array and perform batched Firestore writes
         const promises = parsedStudentBatch.map(student => {
-            // Generate a simple unique ID for the database structure (not displayed to user)
-            const autoGeneratedId = `TEMP-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(7)}`;
+            // Generate a unique, user-facing student ID for each imported student
+            const uniqueId = `PT-${Date.now().toString().slice(-6)}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
             return addDoc(collection(db, "students"), {
                 name: student.name,
-                studentId: autoGeneratedId, // Now an internal, auto-generated ID
+                studentId: uniqueId, // Now the unique, user-facing ID
                 classId: currentClassId,
                 schoolId: currentSchoolId,
                 teacherId: currentUserId,
@@ -1690,21 +1892,24 @@ Mark Johnson"></textarea>
             return feedbackStatus.innerHTML = '<span class="error">Please select a student.</span>';
         }
 
-        const studentName = studentsData[studentDocId]?.name || 'Student';
+        const student = studentsData[studentDocId];
+        const studentName = student?.name || 'Student';
+        const studentUniqueId = student?.studentId; // Use the unique ID for querying records
+
         feedbackStatus.innerHTML = 'Generating... <div class="loader"></div>';
         feedbackOutput.textContent = '';
         
         try {
-            // 1. Fetch Performance Data
+            // 1. Fetch Performance Data using the UNIQUE studentId field
             const q = query(
                 collection(db, "performanceRecords"), 
-                where("studentId", "==", studentDocId),
+                where("studentId", "==", studentUniqueId), // CRITICAL: Use the student's unique ID here
                 where("teacherId", "==", currentUserId) 
             );
             const querySnapshot = await getDocs(q);
 
             if (querySnapshot.empty) {
-                feedbackStatus.innerHTML = '<span class="error">No performance records found for this student.</span>';
+                feedbackStatus.innerHTML = `<span class="error">No performance records found for ${studentName}.</span>`;
                 return;
             }
 
@@ -1755,7 +1960,7 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
 
     window.recordPerformance = async () => {
         if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can record performance.', true);
-        const studentId = document.getElementById('tracking-student-select').value;
+        const studentDocId = document.getElementById('tracking-student-select').value;
         const week = document.getElementById('tracking-week-select').value;
         const weeklyScore = parseFloat(document.getElementById('weekly-score').value);
         const attendance = parseInt(document.getElementById('attendance-count').value);
@@ -1763,11 +1968,16 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
         const projectedScore = parseFloat(document.getElementById('projected-score').value);
         const reportText = document.getElementById('weekly-report').value;
         
-        if (!studentId || !week) return showStatus('Please select a student and week.', true);
+        if (!studentDocId || !week) return showStatus('Please select a student and week.', true);
+
+        // Get the actual studentId (unique PT-...) from the document ID
+        const studentUniqueId = studentsData[studentDocId]?.studentId;
+        if (!studentUniqueId) return showStatus('Could not retrieve student unique ID.', true);
+
 
         try {
             await addDoc(collection(db, "performanceRecords"), {
-                studentId: studentId,
+                studentId: studentUniqueId, // Use the unique student ID here, not the doc ID
                 classId: currentClassId,
                 teacherId: currentUserId, 
                 week: week,
@@ -1778,7 +1988,7 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
                 report: reportText,
                 timestamp: new Date()
             });
-            showStatus(`Performance recorded for Student: ${studentsData[studentId].name}, Week: ${week}.`, false);
+            showStatus(`Performance recorded for Student: ${studentsData[studentDocId].name}, Week: ${week}.`, false);
         } catch (error) {
             showStatus(`Error recording performance: ${error.message}`, true);
         }
@@ -1788,16 +1998,39 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
     // 5. DATA ANALYSIS & REPORTING
     // ----------------------------------------------------------------------
 
-    window.displayStudentChart = async () => {
-        if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can view student reports.', true);
-        const studentId = document.getElementById('report-student-select').value;
-        if (!studentId) return showStatus('Please select a student for charting.', true);
+    // Reusable function for rendering charts (used by both teacher and student dashboards)
+    window.displayStudentChart = async (canvasId, isStudentView = false) => {
+        
+        let studentDocId, teacherId, chartRef;
+
+        if (isStudentView) {
+            // Student mode logic
+            studentDocId = currentStudentDocId;
+            teacherId = null; // Students only query their own records based on studentId field
+            chartRef = studentChart;
+            if (!studentDocId) return showStatus('Student data not loaded.', true);
+        } else {
+            // Teacher mode logic
+            if (currentUserRole !== 'teacher') return showStatus('Access Denied.', true);
+            studentDocId = document.getElementById('report-student-select').value;
+            teacherId = currentUserId; 
+            chartRef = performanceChart;
+            if (!studentDocId) return showStatus('Please select a student for charting.', true);
+        }
+        
+        const studentUniqueId = isStudentView ? currentStudentId : studentsData[studentDocId]?.studentId;
+        const studentName = isStudentView ? currentStudentName : studentsData[studentDocId]?.name;
+        
+        const qConstraints = [where("studentId", "==", studentUniqueId)];
+        if (teacherId) {
+            qConstraints.push(where("teacherId", "==", teacherId));
+        }
 
         const q = query(
             collection(db, "performanceRecords"), 
-            where("studentId", "==", studentId),
-            where("teacherId", "==", currentUserId) 
+            ...qConstraints
         );
+
         try {
             const querySnapshot = await getDocs(q);
             
@@ -1811,21 +2044,21 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
             const scores = weeks.map(week => scoresMap[week]);
             const weekLabels = weeks.map(w => `Week ${w}`);
 
-            const ctx = document.getElementById('performance-chart').getContext('2d');
+            const ctx = document.getElementById(canvasId).getContext('2d');
 
-            if (performanceChart) {
-                performanceChart.destroy();
+            if (chartRef) {
+                chartRef.destroy();
             }
 
-            performanceChart = new Chart(ctx, {
+            const chartData = {
                 type: 'line',
                 data: {
                     labels: weekLabels,
                     datasets: [{
-                        label: studentsData[studentId].name + ' Weekly Scores',
+                        label: studentName + ' Weekly Scores',
                         data: scores,
                         borderColor: 'var(--primary-color)',
-                        backgroundColor: 'rgba(30, 136, 229, 0.2)', /* Updated opacity */
+                        backgroundColor: 'rgba(30, 136, 229, 0.2)',
                         tension: 0.3,
                         fill: true
                     }]
@@ -1838,14 +2071,23 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
                     },
                     plugins: { title: { display: true, text: 'Student Academic Progress Trend' } }
                 }
-            });
+            };
 
-            showStatus(`Chart displayed for ${studentsData[studentId].name}.`, false);
+            if (isStudentView) {
+                studentChart = new Chart(ctx, chartData);
+            } else {
+                performanceChart = new Chart(ctx, chartData);
+                showStatus(`Chart displayed for ${studentName}.`, false);
+            }
+
         } catch (error) {
             showStatus(`Error displaying chart: ${error.message}`, true);
         }
     };
     
+    // Alias for teacher view
+    window.displayTeacherChart = () => displayStudentChart('performance-chart', false);
+
     window.generateBroadsheet = async () => {
         if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can generate reports.', true);
         if (!currentClassId) return showStatus('Please load a class before generating a broadsheet.', true);
@@ -1854,7 +2096,8 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
         
         const { jsPDF } = window.jspdf; 
         const doc = new jsPDF();
-        const className = document.getElementById('current-class-title').textContent.split(': ')[1] || 'Unknown Class';
+        const classElement = document.getElementById('current-class-title');
+        const className = classElement ? classElement.textContent.split(': ')[1] || 'Unknown Class' : 'Unknown Class';
         
         doc.setFontSize(16);
         doc.text(`Broadsheet Report - ${className}`, 10, 15);
@@ -1876,25 +2119,26 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
         );
         const performanceSnap = await getDocs(performanceQ);
         
-        // 2. Aggregate performance data by student ID
+        // 2. Aggregate performance data by student ID (PT-...)
         const studentPerformance = {};
         performanceSnap.forEach(doc => {
             const data = doc.data();
-            if (!studentPerformance[data.studentId]) {
-                studentPerformance[data.studentId] = [];
+            const studentUniqueId = data.studentId; 
+            if (!studentPerformance[studentUniqueId]) {
+                studentPerformance[studentUniqueId] = [];
             }
-            studentPerformance[data.studentId].push(data);
+            studentPerformance[studentUniqueId].push(data);
         });
 
         // 3. Prepare table headers
-        const headers = ["Student Name", "Avg Weekly Score (%)", "Latest Midterm (%)", "Weeks Tracked"];
+        const headers = ["Student Name", "Student ID", "Avg Weekly Score (%)", "Latest Midterm (%)", "Weeks Tracked"];
         let rows = [];
 
         // 4. Fill table rows
         studentsSnap.forEach((sDoc) => {
             const student = sDoc.data();
-            const studentId = sDoc.id;
-            const records = studentPerformance[studentId] || [];
+            const studentUniqueId = student.studentId;
+            const records = studentPerformance[studentUniqueId] || [];
             
             const scores = records.map(r => r.score).filter(s => s !== null && s !== undefined);
             const totalScore = scores.reduce((sum, s) => sum + s, 0);
@@ -1905,45 +2149,56 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
 
             rows.push([
                 student.name,
+                studentUniqueId,
                 avgScore,
                 latestMidterm,
                 scores.length
             ]);
         });
         
-        // 5. Draw table manually 
+        // 5. Draw table manually (FIXED ALIGNMENT)
         let startY = 30;
-        const colWidths = [60, 45, 45, 30]; // Adjusted column widths
-        let currentX = 10;
+        const colWidths = [50, 40, 40, 40, 30]; // Adjusted for Student ID
         
         // Draw headers
         doc.setFontSize(10);
-        doc.setFont(doc.getFont().fontName, 'bold');
+        doc.setFont('helvetica', 'bold');
+        let headerX = 10;
         headers.forEach((header, i) => {
-            doc.text(header, currentX, startY);
-            currentX += colWidths[i];
+            doc.text(header, headerX, startY);
+            headerX += colWidths[i];
         });
         
         // Draw horizontal line
-        doc.line(10, startY + 2, currentX - colWidths[headers.length - 1] + colWidths.reduce((a, b) => a + b) - 10, startY + 2);
+        doc.line(10, startY + 2, headerX - colWidths[headers.length - 1] + colWidths.reduce((a, b) => a + b) - 10, startY + 2);
 
         startY += 5;
-        doc.setFont(doc.getFont().fontName, 'normal');
+        doc.setFont('helvetica', 'normal');
         
         // Draw rows
         rows.forEach(row => {
-            currentX = 10;
+            let rowX = 10;
             startY += 7;
-            row.forEach((cell, i) => {
-                doc.text(String(cell), currentX, startY);
-                currentX += colWidths[i];
-            });
             
-            if (startY > 280) { // Page break check
+            // Handle page break
+            if (startY > 280) { 
                 doc.addPage();
                 startY = 10;
-                // Redraw headers on new page (optional, but good for reports)
+                doc.setFont('helvetica', 'bold');
+                let headerX = 10;
+                headers.forEach((header, i) => {
+                    doc.text(header, headerX, startY);
+                    headerX += colWidths[i];
+                });
+                doc.line(10, startY + 2, headerX - colWidths[headers.length - 1] + colWidths.reduce((a, b) => a + b) - 10, startY + 2);
+                startY += 5;
+                doc.setFont('helvetica', 'normal');
             }
+
+            row.forEach((cell, i) => {
+                doc.text(String(cell), rowX, startY);
+                rowX += colWidths[i];
+            });
         });
 
         doc.save(`Broadsheet_${currentClassId}.pdf`);
@@ -1963,7 +2218,17 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
             const role = message.role === 'user' ? 'user' : 'ai';
             const messageDiv = document.createElement('div');
             messageDiv.className = `chat-message ${role}-message`;
-            messageDiv.textContent = message.parts[0].text;
+            
+            const rawText = message.parts[0].text;
+            
+            if (role === 'ai') {
+                // RENDER FIX: Use marked.js to render Markdown as HTML
+                messageDiv.innerHTML = marked.parse(rawText); 
+            } else {
+                // User messages as plain text
+                messageDiv.textContent = rawText;
+            }
+            
             chatContainer.appendChild(messageDiv);
         });
 
@@ -2044,7 +2309,7 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
     };
 
     // Initial setup call
-    if (!currentUserId) {
+    if (!currentUserId && !currentStudentDocId) {
         window.showView('login');
     }
 
