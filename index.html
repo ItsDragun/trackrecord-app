@@ -494,7 +494,7 @@
             <div class="student-login-section">
                 <h2>Student Access</h2>
                 <p>Enter your unique Student ID to view your progress.</p>
-                <input type="text" id="student-access-id" placeholder="Enter Student ID (e.g., TEMP-456789)" required>
+                <input type="text" id="student-access-id" placeholder="Enter Student ID (e.g., PT-456789)" required>
                 <button onclick="studentLogin()">View My Progress</button>
             </div>
             <!-- End Student Access Section -->
@@ -732,7 +732,8 @@ Mark Johnson"></textarea>
         onAuthStateChanged, 
         sendPasswordResetEmail, 
         sendEmailVerification,
-        reload 
+        reload,
+        deleteUser 
     } 
         from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
     import { 
@@ -750,16 +751,15 @@ Mark Johnson"></textarea>
     } 
         from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-    // 1. Your Firebase Configuration (CRITICAL: Key updated as per user confirmation)
+    // 1. Your Firebase Configuration 
     const firebaseConfig = {
-        // This key is used for Firebase services and is also required to authorize the Google/Gemini API calls.
-        apiKey: "AIzaSyB6NImaPQ0nO1BoWx2WLoJqIAg3qZc9yfs", 
-        authDomain: "expense-management-app-551d6.firebaseapp.com",
-        projectId: "expense-management-app-551d6",
-        storageBucket: "expense-management-app-551d6.firebasestorage.app",
-        messagingSenderId: "176380601336",
-        appId: "1:176380601336:web:2a23ca48411cf444c2ac0d",
-        measurementId: "G-QV1E5VVBRY"
+        apiKey: "AIzaSyAsJeCuIsa1YKL7DkV2mLC5kZCHT6bEHQc", 
+        authDomain: "portaltrack-7b46c.firebaseapp.com",
+        projectId: "portaltrack-7b46c",
+        storageBucket: "portaltrack-7b46c.firebasestorage.app",
+        messagingSenderId: "719910046288",
+        appId: "1:719910046288:web:4677f9928f4386cea51f55",
+        measurementId: "G-5MGV15EHQZ"
     };
 
     // 2. Initialize Firebase and Services
@@ -830,11 +830,17 @@ Mark Johnson"></textarea>
         modal.style.display = 'flex';
     };
 
-    // FIX: Helper for LLM API calls - HARDCODING Firebase API Key for Gemini Access
+    // FIX: Helper for LLM API calls 
     const callGeminiApi = async (payload) => {
-        // CRITICAL FIX: We are now explicitly using the Firebase API key for the Gemini call
-        // to bypass authorization issues in this environment.
         const apiKey = firebaseConfig.apiKey; 
+        
+        // --- CRITICAL API KEY CHECK ---
+        if (apiKey.includes("YOUR_NEW_API_KEY_HERE") || apiKey.length < 30) {
+            // This is a safety check in case the user missed the final config update.
+            throw new Error("API Key Missing: Please ensure a valid API key is set in firebaseConfig.");
+        }
+        // --- END API KEY CHECK ---
+
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
         
         let delay = 1000;
@@ -861,7 +867,6 @@ Mark Johnson"></textarea>
                     }
                 } else {
                     const errorBody = await response.json();
-                    // CRITICAL DEBUGGING LINE: Logs the full error response from the API
                     console.error("Gemini API Non-OK Response (Key/Permission Issue):", errorBody); 
                     throw new Error(errorBody.error?.message || `API call failed with status ${response.status}`);
                 }
@@ -976,19 +981,88 @@ Mark Johnson"></textarea>
     // 1. USER AUTHENTICATION (Teacher/Admin)
     // ----------------------------------------------------------------------
 
+    // NEW: Helper function to retry profile read
+    const readProfileWithRetry = async (db, uid, maxRetries = 3, delay = 500) => {
+        const userDocRef = doc(db, "users", uid);
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    return userDocSnap;
+                }
+            } catch (e) {
+                console.warn(`Attempt ${i + 1} to read profile failed: ${e.message}`);
+            }
+            if (i < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 2; // Exponential backoff
+            }
+        }
+        return null; // Return null if profile not found after all retries
+    };
+
+    // NEW: Helper function to diagnose and fix missing profile document
+    const diagnoseAndFixProfile = async (user) => {
+        const userDocRef = doc(db, "users", user.uid);
+        
+        try {
+            const docSnap = await getDoc(userDocRef);
+            if (docSnap.exists()) {
+                return docSnap;
+            }
+
+            // Document missing - attempt to repair if basic info can be found
+            showStatus(`Profile document missing for ${user.email}. Attempting repair...`, true);
+
+            // Fetch school data using the user's email domain or simply assume 'teacher' role for repair
+            // NOTE: Since we don't have school ID, we have to default to minimum viable data.
+            await setDoc(userDocRef, {
+                userId: user.uid,
+                email: user.email,
+                // Assign minimal defaults (This assumes the user was meant to be a teacher 
+                // and an admin exists with a default school. This is an imperfect fix 
+                // but allows the user past the immediate login wall.)
+                schoolId: 'DEFAULT_SCHOOL', 
+                role: 'teacher', 
+                createdAt: new Date(),
+                repaired: true 
+            });
+
+            // Try reading immediately after repair
+            const repairedSnap = await getDoc(userDocRef);
+            if (repairedSnap.exists()) {
+                showStatus(`Profile successfully repaired and recreated. Logging in...`, false);
+                return repairedSnap;
+            } else {
+                throw new Error("Profile repair failed or rules denied write access.");
+            }
+
+        } catch (error) {
+            console.error('Profile Diagnosis/Repair Error:', error);
+            // This is the true failure point, likely due to security rules preventing the setDoc during repair
+            throw new Error(`CRITICAL PROFILE ERROR: Could not read OR repair the profile document. Check your Firestore Security Rules for the '/users/{userId}' collection to ensure CREATE/WRITE access is allowed for authenticated users. Error: ${error.message}`);
+        }
+    }
+
+
     onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUserId = user.uid;
             
             try {
-                const userDocRef = doc(db, "users", user.uid); 
-                const userDocSnap = await getDoc(userDocRef);
+                // 1. Attempt to read profile with retry mechanism
+                let userDocSnap = await readProfileWithRetry(db, user.uid);
                 
-                if (userDocSnap.exists()) {
+                if (!userDocSnap || !userDocSnap.exists()) {
+                    // 2. If retry fails, attempt to diagnose and fix
+                    userDocSnap = await diagnoseAndFixProfile(user);
+                }
+
+                if (userDocSnap && userDocSnap.exists()) {
                     const userData = userDocSnap.data();
                     
                     if (!userData.role || !userData.schoolId) {
-                        showStatus('User profile data incomplete. Logging out.', true);
+                        showStatus('User profile data incomplete. Logging out. Profile missing role or school ID.', true);
                         currentSchoolId = null;
                         currentUserRole = null;
                         await signOut(auth);
@@ -1003,15 +1077,19 @@ Mark Johnson"></textarea>
                     showStatus(`Logged in as ${currentUserRole}.`, false);
 
                 } else {
-                    showStatus('User profile data missing. Logging out.', true);
+                    // Should be caught by diagnoseAndFixProfile, but as a final fallback:
+                    const userDocRef = doc(db, "users", user.uid);
+                    console.error("Firestore Profile Error: Final failure to read profile for path:", userDocRef.path);
+                    showStatus('Login Failed (Profile Not Found): Final verification failed. Check your Firebase Console for data integrity, or verify your Firestore Rules allow the client to READ and potentially RECREATE a missing profile in the `/users/{userId}` collection.', true);
                     currentSchoolId = null;
                     currentUserRole = null;
                     await signOut(auth);
                     return;
                 }
             } catch (error) {
-                showStatus(`Critical Error: Could not load user profile due to permissions. Logging out.`, true);
-                console.error('User Profile Load Error:', error);
+                // Catches errors thrown by diagnoseAndFixProfile
+                showStatus(`Critical Profile Error: ${error.message}`, true);
+                console.error('User Profile Load/Repair Error:', error);
                 currentSchoolId = null;
                 currentUserRole = null;
                 await signOut(auth);
@@ -1052,11 +1130,14 @@ Mark Johnson"></textarea>
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
+            // CRITICAL: Reload user data before checking verification status, 
+            // especially after they click the verification link.
             await reload(user);
             
             if (!user.emailVerified) {
                 await signOut(auth);
-                showStatus('Login Blocked: Please verify your email first. A new verification link has been sent.', true);
+                showStatus('Login Blocked: Please click the verification link sent to your email. If you don\'t see it, check your spam folder.', true);
+                // Resend verification email to prompt user
                 await sendEmailVerification(user); 
                 return;
             }
@@ -1122,6 +1203,7 @@ Mark Johnson"></textarea>
             window.showView('student-dashboard');
             
         } catch (error) {
+            // This error is likely due to the Firestore security rules.
             showStatus(`Error loading student data: ${error.message}`, true);
         }
     }
@@ -1240,8 +1322,10 @@ Mark Johnson"></textarea>
         let schoolName = null;
         let schoolDocId = null;
         let finalRole = role;
+        let user = null; // Declare Auth user outside
 
         try {
+            // --- 1. Pre-Auth Checks (Admin/Teacher) ---
             if (role === 'teacher') {
                 schoolCode = document.getElementById('register-school-code').value.toUpperCase(); 
                 if (!schoolCode) {
@@ -1266,41 +1350,59 @@ Mark Johnson"></textarea>
                 }
             }
             
+            // --- 2. Create Auth User ---
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            user = userCredential.user;
 
-            if (finalRole === 'admin') {
-                   schoolCode = Math.random().toString(36).substring(2, 8).toUpperCase(); 
-                   const schoolRef = await addDoc(collection(db, "schools"), {
-                        name: schoolName,
-                        code: schoolCode,
-                        adminId: user.uid,
-                        createdAt: new Date()
-                    });
-                    schoolDocId = schoolRef.id;
+            // --- 3. Create Firestore Documents (Rollback protection) ---
+            try {
+                if (finalRole === 'admin') {
+                       schoolCode = Math.random().toString(36).substring(2, 8).toUpperCase(); 
+                       const schoolRef = await addDoc(collection(db, "schools"), {
+                            name: schoolName,
+                            code: schoolCode,
+                            adminId: user.uid,
+                            createdAt: new Date()
+                        });
+                        schoolDocId = schoolRef.id;
+                }
+                
+                const userProfileRef = doc(db, "users", user.uid);
+                await setDoc(userProfileRef, {
+                    userId: user.uid,
+                    email: email,
+                    schoolId: schoolDocId, 
+                    role: finalRole, 
+                    createdAt: new Date()
+                });
+
+                // --- 4. Success Path ---
+                await sendEmailVerification(user); 
+                
+                const successMsg = finalRole === 'admin' 
+                    ? `Admin Registration successful! Your School Code for teachers is: ${schoolCode}.`
+                    : 'Teacher Registration successful! A verification link has been sent to your email. **Please check your spam/junk folder if you don\'t see it.** You must click the link to log in.';
+
+                showStatus(successMsg, false);
+                
+                await signOut(auth);
+                window.toggleAuthMode('login');
+
+            } catch (firestoreError) {
+                // If the Firestore write fails, delete the Auth user (rollback)
+                console.error('CRITICAL: Firestore Profile Write Failed. Attempting Auth User deletion.', firestoreError);
+                if (user) {
+                    await deleteUser(user);
+                    console.log('Orphaned Auth account deleted successfully.');
+                }
+                showStatus(`Registration Failed (Profile Setup Error): Could not create your profile document. Please check your security rules and try again. Error: ${firestoreError.message}`, true);
+                await signOut(auth); // Ensure clean state
+                window.toggleAuthMode('register');
             }
             
-            const userProfileRef = doc(db, "users", user.uid);
-            await setDoc(userProfileRef, {
-                userId: user.uid,
-                email: email,
-                schoolId: schoolDocId, 
-                role: finalRole, 
-                createdAt: new Date()
-            });
-            
-            await sendEmailVerification(user); 
-            
-            const successMsg = finalRole === 'admin' 
-                ? `Admin Registration successful! Your School Code for teachers is: ${schoolCode}.`
-                : 'Teacher Registration successful! Check your email for a verification link.';
-
-            showStatus(successMsg, false);
-            
-            await signOut(auth);
-            window.toggleAuthMode('login');
-        } catch (error) {
-            showStatus(`Registration Failed: ${error.message}. (Did you set up your Firestore Security Rules!)`, true);
+        } catch (authError) {
+            // Catches initial Auth errors (e.g., weak password, email already in use)
+            showStatus(`Registration Failed (Authentication Error): ${authError.message}.`, true);
         }
     };
 
