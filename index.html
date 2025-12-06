@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PortalTrack - Academic Progress Tracker</title>
     
-    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> 
@@ -322,6 +321,16 @@
             width: 100%;
             max-width: 500px;
         }
+        
+        /* Specific input styling for batch tracking */
+        #student-score-input-list .weekly-score-input {
+            width: 120px; 
+            text-align: center; 
+            font-weight: 500; 
+            padding: 8px;
+            margin: 0;
+            flex-shrink: 0;
+        }
 
         /* Modal Styles */
         .modal-overlay {
@@ -490,15 +499,13 @@
                 </div>
             </div>
 
-            <!-- New Student Access Section -->
             <div class="student-login-section">
                 <h2>Student Access</h2>
                 <p>Enter your unique Student ID to view your progress.</p>
                 <input type="text" id="student-access-id" placeholder="Enter Student ID (e.g., PT-456789)" required>
                 <button onclick="studentLogin()">View My Progress</button>
             </div>
-            <!-- End Student Access Section -->
-        </div>
+            </div>
         
         <div id="dashboard-view" class="view">
             <h2>Teacher Dashboard</h2>
@@ -575,37 +582,39 @@
             <h3>Class Roster (w/ Goals & Parent Access)</h3>
             <div id="students-list">No students loaded.</div>
         </div>
-
+        
         <div id="tracking-view" class="view">
-            <h2>Performance Tracking & Feedback</h2>
+            <h2>Fast Performance Tracking & Feedback</h2>
             
-            <div style="display: flex; gap: 20px; align-items: flex-end;">
-                <div style="flex: 1;">
-                    <h3>1. Select Student & Week</h3>
-                    <select id="tracking-student-select">
-                        <option value="">Select Student</option>
-                    </select>
-                    <select id="tracking-week-select">
-                        <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
-                        <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option><option value="8">Week 8</option>
-                    </select>
+            <h3>1. Select Week to Track</h3>
+            <select id="tracking-week-select-batch" onchange="loadStudentsForBatchTracking()">
+                <option value="">Select Week</option>
+                <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+                <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option><option value="8">Week 8</option>
+                <option value="9">Week 9</option><option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
+                <option value="13">Week 13</option><option value="14">Week 14</option><option value="15">Week 15</option><option value="16">Week 16</option>
+            </select>
+
+            <h3 style="margin-top: 25px;">2. Enter Weekly Scores (Score / 100)</h3>
+            <p id="tracking-class-info" style="color: var(--secondary-color);">Please load a class in the 'Classes' tab first.</p>
+            
+            <div id="student-score-input-list">
                 </div>
-                <div style="flex: 1; text-align: right;">
-                    <h3>AI Feedback Assistant</h3>
-                    <button onclick="openGeminiModal()">✨ Generate Personalized Feedback</button>
-                </div>
+            
+            <div style="margin-top: 20px;">
+                <button onclick="batchRecordPerformance()" id="batch-record-button" disabled>💾 Batch Record Scores</button>
             </div>
             
-            <h3>2. Record Scores & Notes</h3>
-            <input type="number" id="weekly-score" placeholder="Weekly Score (e.g., 85/100)">
-            <input type="number" id="attendance-count" placeholder="Attendance (Days Present / Total)">
-            <input type="number" id="midterm-score" placeholder="Midterm Score">
-            <input type="number" id="projected-score" placeholder="Projected Final Score (Optional)">
-            <textarea id="weekly-report" placeholder="Overall Report entry / Teacher notes..."></textarea>
-            
-            <button onclick="recordPerformance()">💾 Record Performance</button>
-        </div>
+            <hr style="margin: 30px 0;">
 
+            <h3>✨ AI Feedback Assistant</h3>
+            <p>Generate detailed feedback for an individual student based on their complete performance history.</p>
+            <select id="gemini-student-select-tracking" style="width: 70%; margin-right: 10px;">
+                <option value="">Select Student</option>
+            </select>
+            <button onclick="generateGeminiFeedbackTracking()">Generate Feedback</button>
+            <button onclick="openGeminiModal()">View Feedback History</button> 
+        </div>
         <div id="reports-view" class="view">
             <h2>Reports & Analysis</h2>
             
@@ -625,7 +634,6 @@
 
     </div> 
     
-    <!-- Modals -->
     <div id="edit-student-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>Edit Student Information</h3>
@@ -753,6 +761,7 @@ Mark Johnson"></textarea>
 
     // 1. Your Firebase Configuration 
     const firebaseConfig = {
+        // !!! CRITICAL: REPLACE THIS REVOKED KEY WITH YOUR NEW, ACTIVE GEMINI API KEY !!!
         apiKey: "AIzaSyDAnYz8HQcc6xiuWqlZ77EU2RsNDYSs7Jg", 
         authDomain: "portaltrack-7b46c.firebaseapp.com",
         projectId: "portaltrack-7b46c",
@@ -808,7 +817,7 @@ Mark Johnson"></textarea>
     // Custom Confirmation Modal (Replaces window.confirm/alert)
     window.showConfirmation = (message, onConfirm) => {
         const modal = document.getElementById('confirm-modal');
-        document.getElementById('confirm-message').textContent = message;
+        document.getElementById('confirm-message').innerHTML = message;
         
         const confirmYes = document.getElementById('confirm-yes');
         const confirmNo = document.getElementById('confirm-no');
@@ -836,7 +845,6 @@ Mark Johnson"></textarea>
         
         // --- CRITICAL API KEY CHECK ---
         if (apiKey.includes("YOUR_NEW_API_KEY_HERE") || apiKey.length < 30) {
-            // This is a safety check in case the user missed the final config update.
             throw new Error("API Key Missing: Please ensure a valid API key is set in firebaseConfig.");
         }
         // --- END API KEY CHECK ---
@@ -946,8 +954,9 @@ Mark Johnson"></textarea>
         if (viewId === 'student-management' && currentClassId) {
             loadStudents();
         }
+        // MODIFIED: Only load students, actual batch list loads on week change
         if (viewId === 'tracking' && currentClassId) {
-            loadStudents();
+            loadStudents(true); 
         }
         if (viewId === 'student-dashboard' && currentStudentDocId) {
             loadStudentDashboard();
@@ -1234,7 +1243,6 @@ Mark Johnson"></textarea>
             const performanceQ = query(
                 collection(db, "performanceRecords"), 
                 // FIX: Use the unique studentId string (currentStudentId) 
-                // instead of the Firestore document ID (currentStudentDocId)
                 where("studentId", "==", currentStudentId)
             );
             const performanceSnap = await getDocs(performanceQ);
@@ -1634,7 +1642,7 @@ Mark Johnson"></textarea>
     window.generateParentToken = async (studentDocId, studentName) => {
         if (currentUserRole !== 'teacher') return showStatus('Access Denied.', true);
         
-        window.showConfirmation(`Are you sure you want to generate a new read-only access token for ${studentName}? This will replace any existing token.`, async (confirmed) => {
+        window.showConfirmation(`Are you sure you want to generate a new read-only access token for **${studentName}**? This will replace any existing token.`, async (confirmed) => {
             if (confirmed) {
                 const token = 'TR-' + crypto.randomUUID().substring(0, 10).toUpperCase().replace(/-/g, '');
                 try {
@@ -1653,7 +1661,8 @@ Mark Johnson"></textarea>
         });
     };
 
-    window.loadStudents = async () => {
+    // MODIFIED: Takes an optional parameter to indicate if we are loading for the Tracking view
+    window.loadStudents = async (isTrackingView = false) => {
         if (currentUserRole !== 'teacher') return;
         if (!currentClassId) {
             document.getElementById('students-list').innerHTML = 'No class loaded.';
@@ -1682,18 +1691,19 @@ Mark Johnson"></textarea>
             
             performanceSnap.forEach(d => {
                 const data = d.data(); 
-                // Use studentDocId (Firestore document ID) as key for performance mapping
-                const studentDocId = d.data().studentId; 
-                if (!performanceMap[studentDocId]) {
-                    performanceMap[studentDocId] = [];
+                // Use studentUniqueId (PT-...) as key for performance mapping
+                const studentUniqueId = d.data().studentId; 
+                if (!performanceMap[studentUniqueId]) {
+                    performanceMap[studentUniqueId] = [];
                 }
                 if (data.score !== null && data.score !== undefined) {
-                    performanceMap[studentDocId].push(data.score);
+                    performanceMap[studentUniqueId].push(data.score);
                 }
             });
 
             let html = '';
             const studentOptions = [];
+            const trackingOptions = []; // NEW: Separate array for the new tracking modal
 
             studentsSnap.forEach((d) => {
                 const student = d.data();
@@ -1702,9 +1712,9 @@ Mark Johnson"></textarea>
                 
                 // Populate select options
                 studentOptions.push(`<option value="${studentDocId}">${student.name} (${student.studentId})</option>`);
+                trackingOptions.push(`<option value="${studentDocId}">${student.name}</option>`); // Simpler name for batch tracking
 
                 // --- Goal Tracking Logic ---
-                // Note: Performance Map now uses student.studentId (unique ID) as key, but the document ID is d.id
                 const scores = performanceMap[student.studentId] || []; 
                 const currentAvg = scores.length > 0 ? (scores.reduce((sum, s) => sum + s, 0) / scores.length) : 0;
                 
@@ -1755,12 +1765,20 @@ Mark Johnson"></textarea>
 
             // Update all student select boxes
             const studentOptionsHtml = studentOptions.join('');
-            document.getElementById('tracking-student-select').innerHTML = '<option value="">Select Student</option>' + studentOptionsHtml;
             document.getElementById('report-student-select').innerHTML = '<option value="">Select Student to View Chart</option>' + studentOptionsHtml;
             document.getElementById('goal-student-select').innerHTML = '<option value="">Select Student</option>' + studentOptionsHtml;
             document.getElementById('gemini-student-select').innerHTML = '<option value="">Select Student</option>' + studentOptionsHtml;
+            
+            // NEW: Update the specific select box for the fast tracking view
+            document.getElementById('gemini-student-select-tracking').innerHTML = '<option value="">Select Student</option>' + trackingOptions.join('');
+
 
             document.getElementById('students-list').innerHTML = html || '<p>No students found in this class.</p>';
+            
+            // NEW: If we are in the tracking view, automatically load the batch input interface
+            if (isTrackingView) {
+                loadStudentsForBatchTracking();
+            }
         } catch (error) {
             showStatus(`Error loading students: ${error.message}`, true);
         }
@@ -1971,8 +1989,151 @@ Mark Johnson"></textarea>
 
 
     // ----------------------------------------------------------------------
-    // 4. PERFORMANCE TRACKING (Gemini Integration)
+    // 4. PERFORMANCE TRACKING (Gemini Integration + NEW BATCH)
     // ----------------------------------------------------------------------
+    
+    // NEW: Function to populate student list and existing scores for batch input
+    window.loadStudentsForBatchTracking = async () => {
+        if (currentUserRole !== 'teacher') return;
+        const trackingListDiv = document.getElementById('student-score-input-list');
+        const week = document.getElementById('tracking-week-select-batch').value;
+        const classInfo = document.getElementById('tracking-class-info');
+        const batchButton = document.getElementById('batch-record-button');
+
+        if (!currentClassId) {
+            classInfo.textContent = 'Please load a class in the "Classes" tab first.';
+            trackingListDiv.innerHTML = '';
+            batchButton.disabled = true;
+            return;
+        }
+        
+        const studentOptions = Object.values(studentsData).map(student => 
+            `<option value="${student.docId}">${student.name} (${student.studentId})</option>`
+        );
+        document.getElementById('gemini-student-select-tracking').innerHTML = '<option value="">Select Student</option>' + studentOptions.join('');
+
+        if (!week) {
+            classInfo.textContent = `Class: ${document.getElementById('current-class-title').textContent.split(': ')[1] || 'Loaded'}. Select a Week.`;
+            trackingListDiv.innerHTML = '';
+            batchButton.disabled = true;
+            return;
+        }
+
+        classInfo.textContent = `Class: ${document.getElementById('current-class-title').textContent.split(': ')[1] || 'Loaded'} | Tracking Week: ${week}`;
+        
+        // Fetch existing records for this week to pre-fill the form
+        const q = query(
+            collection(db, "performanceRecords"), 
+            where("classId", "==", currentClassId),
+            where("teacherId", "==", currentUserId),
+            where("week", "==", week)
+        );
+        const snap = await getDocs(q);
+        const existingRecords = {};
+        snap.forEach(doc => {
+            existingRecords[doc.data().studentId] = doc.data().score;
+        });
+
+        let html = '';
+        let studentsArray = Object.values(studentsData);
+
+        studentsArray.forEach(student => {
+            const currentScore = existingRecords[student.studentId] || '';
+            let scoreColor = '#CFD8DC';
+            if (currentScore !== '') {
+                 scoreColor = currentScore >= 90 ? 'var(--success-color)' : currentScore >= 70 ? 'var(--accent-color)' : 'var(--danger-color)';
+            }
+            
+            html += `
+                <div class="class-item" data-student-doc-id="${student.docId}" data-student-unique-id="${student.studentId}">
+                    <div style="flex-grow: 1;">
+                        <strong>${student.name}</strong> 
+                        <small style="display: block; color: var(--secondary-color);">ID: ${student.studentId}</small>
+                    </div>
+                    <input type="number" 
+                           min="0" max="100" 
+                           placeholder="Score (0-100)" 
+                           class="weekly-score-input"
+                           value="${currentScore}"
+                           data-student-name="${student.name}"
+                           style="width: 120px; text-align: center; font-weight: 500; border: 2px solid ${scoreColor};"
+                           onchange="this.style.borderColor=this.value >= 90 ? 'var(--success-color)' : this.value >= 70 ? 'var(--accent-color)' : 'var(--danger-color)';">
+                </div>
+            `;
+        });
+
+        trackingListDiv.innerHTML = html || '<p>No students found in this class. Add some in Class Management.</p>';
+        batchButton.disabled = studentsArray.length === 0;
+
+        if (studentsArray.length === 0) {
+            batchButton.disabled = true;
+        } else if (Object.keys(existingRecords).length > 0) {
+            showStatus(`Pre-filled scores for Week ${week} (${Object.keys(existingRecords).length} records found).`, false);
+        }
+    };
+    
+    // NEW: Function to batch record all scores at once
+    window.batchRecordPerformance = async () => {
+        if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can record performance.', true);
+        if (!currentClassId) return showStatus('Please load a class first.', true);
+
+        const week = document.getElementById('tracking-week-select-batch').value;
+        if (!week) return showStatus('Please select a week first.', true);
+
+        const inputs = document.querySelectorAll('#student-score-input-list .weekly-score-input');
+        if (inputs.length === 0) return showStatus('No students to record.', true);
+
+        window.showConfirmation(`Are you sure you want to record/update scores for **${inputs.length} students** for **Week ${week}**? Existing records for this week will likely be duplicated if not checked.`, async (confirmed) => {
+            if (confirmed) {
+                const batchPromises = [];
+                let updatedCount = 0;
+                let skippedCount = 0;
+
+                showStatus('Batch recording in progress... Do not navigate away. <div class="loader"></div>', false);
+
+                for (const input of inputs) {
+                    const parentDiv = input.closest('.class-item');
+                    const studentUniqueId = parentDiv.dataset.studentUniqueId;
+                    const studentName = input.dataset.studentName;
+                    const score = parseFloat(input.value);
+
+                    if (isNaN(score) || score < 0 || score > 100) {
+                        skippedCount++;
+                        console.warn(`Skipping ${studentName}: Invalid score ${input.value}`);
+                        continue;
+                    }
+                    
+                    // Simple ADD DOC: For production, you'd use a batched transaction to check for existing records 
+                    // (studentId + week) and UPDATE instead of CREATE. For this simple app, we create a new one.
+
+                    batchPromises.push(addDoc(collection(db, "performanceRecords"), {
+                        studentId: studentUniqueId,
+                        classId: currentClassId,
+                        teacherId: currentUserId,
+                        week: week,
+                        score: score,
+                        // Nulling other non-batch fields for simplicity
+                        attendance: null, 
+                        midterm: null,
+                        projected: null,
+                        report: `Weekly score recorded via batch input for Week ${week}.`, 
+                        timestamp: new Date()
+                    }).then(() => {
+                        updatedCount++;
+                    }).catch(error => {
+                        console.error(`Failed to record performance for ${studentName}:`, error);
+                    }));
+                }
+
+                await Promise.all(batchPromises);
+                
+                showStatus(`✅ Batch Complete! Successfully recorded scores for ${updatedCount} students (Skipped ${skippedCount} blank/invalid entries).`, updatedCount === 0);
+                
+                // Reload the list to confirm new entries
+                loadStudentsForBatchTracking(); 
+            }
+        });
+    };
 
     window.openGeminiModal = () => {
         document.getElementById('gemini-feedback-modal').style.display = 'flex';
@@ -1983,6 +2144,22 @@ Mark Johnson"></textarea>
     window.closeGeminiModal = () => {
         document.getElementById('gemini-feedback-modal').style.display = 'none';
     }
+    
+    // NEW: Dedicated function for the tracking view's feedback button, to avoid selecting the wrong element
+    window.generateGeminiFeedbackTracking = () => {
+         // Get the selected student from the *new* tracking selector
+        const studentDocId = document.getElementById('gemini-student-select-tracking').value;
+        // Temporarily set the main modal selector value to match
+        document.getElementById('gemini-student-select').value = studentDocId;
+        
+        if (!studentDocId) {
+             return showStatus('Please select a student from the dropdown before generating feedback.', true);
+        }
+        // Then call the core logic which uses the main modal selector (now correctly populated)
+        openGeminiModal();
+        generateGeminiFeedback();
+    }
+
 
     window.generateGeminiFeedback = async () => {
         if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can generate feedback.', true);
@@ -2060,41 +2237,6 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
         }
     };
 
-    window.recordPerformance = async () => {
-        if (currentUserRole !== 'teacher') return showStatus('Access Denied: Only teachers can record performance.', true);
-        const studentDocId = document.getElementById('tracking-student-select').value;
-        const week = document.getElementById('tracking-week-select').value;
-        const weeklyScore = parseFloat(document.getElementById('weekly-score').value);
-        const attendance = parseInt(document.getElementById('attendance-count').value);
-        const midtermScore = parseFloat(document.getElementById('midterm-score').value);
-        const projectedScore = parseFloat(document.getElementById('projected-score').value);
-        const reportText = document.getElementById('weekly-report').value;
-        
-        if (!studentDocId || !week) return showStatus('Please select a student and week.', true);
-
-        // Get the actual studentId (unique PT-...) from the document ID
-        const studentUniqueId = studentsData[studentDocId]?.studentId;
-        if (!studentUniqueId) return showStatus('Could not retrieve student unique ID.', true);
-
-
-        try {
-            await addDoc(collection(db, "performanceRecords"), {
-                studentId: studentUniqueId, // Use the unique student ID here, not the doc ID
-                classId: currentClassId,
-                teacherId: currentUserId, 
-                week: week,
-                score: isNaN(weeklyScore) ? null : weeklyScore,
-                attendance: isNaN(attendance) ? null : attendance,
-                midterm: isNaN(midtermScore) ? null : midtermScore,
-                projected: isNaN(projectedScore) ? null : projectedScore,
-                report: reportText,
-                timestamp: new Date()
-            });
-            showStatus(`Performance recorded for Student: ${studentsData[studentDocId].name}, Week: ${week}.`, false);
-        } catch (error) {
-            showStatus(`Error recording performance: ${error.message}`, true);
-        }
-    };
 
     // ----------------------------------------------------------------------
     // 5. DATA ANALYSIS & REPORTING
@@ -2419,4 +2561,3 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
 
 </body>
 </html>
-
