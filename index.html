@@ -284,7 +284,7 @@
         }
 
         /* General UI Elements */
-        .class-item, .student-card { 
+        .class-item, .student-card, .quiz-item { 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
@@ -355,6 +355,63 @@
             max-height: 80vh;
             overflow-y: auto;
         }
+        /* Wide modal for Quiz Creation/Taking */
+        #take-quiz-modal .modal-content, #quiz-create-modal .modal-content {
+            max-width: 800px;
+        }
+        
+        /* Quiz Item Specific (For Teacher Creation) */
+        .quiz-question {
+            padding: 15px;
+            border: 1px solid #dcdcdc; /* Lighter border for distinction */
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background-color: #fcfcfc;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .quiz-question label {
+            display: block;
+            margin-top: 5px;
+            font-weight: 400;
+        }
+        .quiz-question input[type="radio"], .quiz-question input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .quiz-item-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        /* Student Quiz Taking Styles */
+        #quiz-take-questions-container .quiz-question {
+            border-left: 5px solid var(--primary-color);
+            background-color: var(--background-light);
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        #quiz-take-questions-container strong {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            color: #333;
+        }
+        #quiz-take-questions-container label {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            margin: 4px 0;
+            display: flex;
+            align-items: center;
+        }
+        #quiz-take-questions-container label:hover {
+            background-color: #E3F2FD;
+        }
+        #quiz-take-questions-container input[type="radio"]:checked + span {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
         
         /* Chat/Output Styling */
         #feedback-output, #test-output-content {
@@ -382,7 +439,6 @@
             background-color: #F1F8E9; 
             text-align: left;
             border-left: 3px solid var(--success-color);
-            /* Important: Allow Markdown HTML to render */
             white-space: normal; 
         }
         
@@ -446,6 +502,7 @@
         <button onclick="showView('dashboard'); closeSidebar();" id="nav-dashboard" class="sidebar-link nav-item-teacher">🏠 Teacher Dashboard</button>
         <button onclick="showView('class-management'); closeSidebar();" id="nav-classes" class="sidebar-link nav-item-teacher">📚 Classes</button>
         <button onclick="showView('tracking'); closeSidebar();" id="nav-tracking" class="sidebar-link nav-item-teacher">📝 Tracking</button>
+        <button onclick="showView('quiz-management'); closeSidebar();" id="nav-quizzes" class="sidebar-link nav-item-teacher">✍️ Quizzes</button>
         <button onclick="openTestGeneratorModal(); closeSidebar();" id="nav-test-generator" class="sidebar-link nav-item-teacher">🧠 AI Test Generator</button>
         <button onclick="showView('reports'); closeSidebar();" id="nav-reports" class="sidebar-link nav-item-teacher">📈 Reports</button>
         <button onclick="showView('admin-dashboard'); closeSidebar();" id="nav-admin-dashboard" class="sidebar-link nav-item-admin">🔑 Admin Code</button>
@@ -518,6 +575,9 @@
             <h2 id="student-dashboard-title">Student Progress for: (Loading...)</h2>
             <p>Welcome! This is your personalized, read-only academic progress dashboard.</p>
             
+            <h3 style="margin-top: 30px;">🎁 My Assignments & Quizzes <span style="font-size:1.5em; color: var(--success-color);">New!</span></h3>
+            <div id="student-quiz-inbox">No quizzes assigned.</div>
+
             <h3 style="margin-top: 30px;">🎯 My Current Goal</h3>
             <div id="student-goal-output">Loading Goal...</div>
 
@@ -615,6 +675,19 @@
             <button onclick="generateGeminiFeedbackTracking()">Generate Feedback</button>
             <button onclick="openGeminiModal()">View Feedback History</button> 
         </div>
+
+        <div id="quiz-management-view" class="view">
+            <h2>Quiz & Assignment Management</h2>
+            <p>Create quizzes and they will automatically appear in your students' inboxes.</p>
+            
+            <h3>1. Create New Quiz</h3>
+            <button onclick="openQuizCreateModal()">➕ Create New Quiz</button>
+            <hr>
+            
+            <h3>2. Manage Active Quizzes (Assignments)</h3>
+            <div id="quizzes-list">No quizzes loaded.</div>
+        </div>
+
         <div id="reports-view" class="view">
             <h2>Reports & Analysis</h2>
             
@@ -681,7 +754,60 @@ Mark Johnson"></textarea>
         </div>
     </div>
 
+    <div id="quiz-create-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>✍️ Create New Interactive Quiz/Assignment</h3>
+            
+            <label for="quiz-title">Quiz Title</label>
+            <input type="text" id="quiz-title" placeholder="e.g., The Photosynthesis Cycle Quiz" required>
 
+            <label for="quiz-class-select">Assign to Class</label>
+            <select id="quiz-class-select" required>
+                </select>
+
+            <label for="quiz-due-week">Assignment Week (For Tracking)</label>
+            <select id="quiz-due-week" required>
+                <option value="">Select Week</option>
+                <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option><option value="4">Week 4</option>
+                <option value="5">Week 5</option><option value="6">Week 6</option><option value="7">Week 7</option><option value="8">Week 8</option>
+                <option value="9">Week 9</option><option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
+                <option value="13">Week 13</option><option value="14">Week 14</option><option value="15">Week 15</option><option value="16">Week 16</option>
+            </select>
+            <hr>
+            
+            <h4>Quiz Questions <small>(Max 10 points per question)</small></h4>
+            <div id="quiz-questions-container">
+                </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                <button onclick="addQuestion('mc')">➕ MC Question</button>
+                <button onclick="addQuestion('tf')" class="secondary">➕ True/False</button>
+                <button onclick="addQuestion('theory')" class="secondary">➕ Theory (Keywords)</button>
+            </div>
+            
+            <div id="quiz-create-status" class="error" style="display: none;"></div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <button onclick="createQuiz()">💾 Save & Assign Quiz</button>
+                <button onclick="closeQuizCreateModal()" class="danger">Cancel</button>
+            </div>
+        </div>
+    </div>
+    <div id="take-quiz-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 id="quiz-take-title" style="border-left: 4px solid var(--success-color);">Take Quiz</h3>
+            <p id="quiz-take-meta">Assigned by: Loading... | Due: Loading...</p>
+            
+            <div id="quiz-take-questions-container" style="padding: 10px 0;">
+                </div>
+            
+            <div id="quiz-take-status" class="error" style="display: none;"></div>
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <button onclick="submitQuiz()">✅ Submit Quiz</button>
+                <button onclick="closeTakeQuizModal()" class="danger">Close / Exit</button>
+            </div>
+        </div>
+    </div>
     <div id="gemini-feedback-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>✨ Personalized Student Feedback</h3>
@@ -782,13 +908,19 @@ Mark Johnson"></textarea>
     let currentSchoolId = null; 
     let currentUserRole = null; 
     let studentsData = {}; 
+    let classesData = {}; // NEW: Store class data by ID
     let performanceChart; 
     
     // NEW STUDENT-SPECIFIC STATE
     let currentStudentDocId = null; 
     let currentStudentId = null; 
     let currentStudentName = null;
+    let studentClassId = null; // NEW: Store student's current class ID
     
+    let quizInConstruction = []; // NEW: Array to hold questions for the create quiz modal
+    let quizDataMap = {}; // NEW: Map to store active quiz data by ID
+    let currentQuizForTaking = null; // NEW: Holds the active quiz document for the student to take
+
     let testChatHistory = [
         {
             role: "system",
@@ -945,7 +1077,7 @@ Mark Johnson"></textarea>
             targetView.style.display = ''; 
         }
 
-        if (viewId === 'class-management' || viewId === 'dashboard') {
+        if (viewId === 'class-management' || viewId === 'dashboard' || viewId === 'quiz-management') { // Added quiz-management to load classes
             loadClasses();
         }
         if (viewId === 'admin-dashboard') {
@@ -960,6 +1092,11 @@ Mark Johnson"></textarea>
         }
         if (viewId === 'student-dashboard' && currentStudentDocId) {
             loadStudentDashboard();
+            loadStudentQuizzes(); // NEW: Load student assignments
+        }
+        // NEW: Load quizzes for teacher management
+        if (viewId === 'quiz-management') {
+            loadQuizzes();
         }
     };
     
@@ -1083,6 +1220,7 @@ Mark Johnson"></textarea>
                     currentStudentDocId = null; // Clear student state on teacher login
                     currentStudentId = null;
                     currentStudentName = null;
+                    studentClassId = null; // Clear student class ID
                     showStatus(`Logged in as ${currentUserRole}.`, false);
 
                 } else {
@@ -1124,6 +1262,7 @@ Mark Johnson"></textarea>
             currentStudentDocId = null;
             currentStudentId = null;
             currentStudentName = null;
+            studentClassId = null;
             updateNavigationVisibility(); 
             closeSidebar();
             
@@ -1167,6 +1306,7 @@ Mark Johnson"></textarea>
                 currentStudentDocId = null;
                 currentStudentId = null;
                 currentStudentName = null;
+                studentClassId = null;
                 showStatus('Student Logged out successfully.', false);
                 window.showView('login');
             }
@@ -1202,6 +1342,7 @@ Mark Johnson"></textarea>
             currentStudentDocId = studentDoc.id;
             currentStudentId = studentData.studentId;
             currentStudentName = studentData.name;
+            studentClassId = studentData.classId; // NEW: Capture student's class ID
             
             // Clear teacher state
             currentUserId = null; 
@@ -1312,6 +1453,69 @@ Mark Johnson"></textarea>
         } catch (error) {
             document.getElementById('student-goal-output').innerHTML = `<p class="error">Error loading data: ${error.message}</p>`;
             console.error('Student Dashboard Load Error:', error);
+        }
+    }
+
+    // NEW: Load assignments for student
+    window.loadStudentQuizzes = async () => {
+        if (!currentStudentId || !studentClassId) return;
+
+        try {
+            // 1. Fetch all quizzes assigned to the student's class
+            const quizzesQ = query(
+                collection(db, "quizzes"),
+                where("classId", "==", studentClassId)
+            );
+            const quizzesSnap = await getDocs(quizzesQ);
+
+            // 2. Fetch the student's submission records (performance records tagged as 'quiz')
+            const submissionsQ = query(
+                collection(db, "performanceRecords"),
+                where("studentId", "==", currentStudentId),
+                where("type", "==", "quiz")
+            );
+            const submissionsSnap = await getDocs(submissionsQ);
+            const submittedQuizzes = {};
+            submissionsSnap.forEach(doc => {
+                submittedQuizzes[doc.data().quizId] = doc.data().score;
+            });
+            
+            let html = '';
+            quizDataMap = {}; // Clear and rebuild the map
+
+            quizzesSnap.forEach(doc => {
+                const quiz = doc.data();
+                quiz.docId = doc.id;
+                quizDataMap[doc.id] = quiz; // Store data for quick access
+
+                const isSubmitted = submittedQuizzes.hasOwnProperty(doc.id);
+                const score = isSubmitted ? `Score: **${submittedQuizzes[doc.id]}%**` : '';
+                const statusColor = isSubmitted ? 'var(--success-color)' : 'var(--primary-color)';
+                const buttonText = isSubmitted ? 'Review Results' : 'Take Quiz';
+                const buttonAction = isSubmitted ? `reviewQuiz('${doc.id}')` : `takeQuiz('${doc.id}')`;
+                const dueText = quiz.deadline || 'None';
+
+                html += `
+                    <div class="quiz-item" style="border-left: 5px solid ${statusColor};">
+                        <div style="flex-grow: 1;">
+                            <strong>${quiz.title}</strong>
+                            <small style="display: block; color: var(--secondary-color);">
+                                Assigned Week: ${quiz.assignedWeek} | ${score}
+                            </small>
+                            <small style="display: block; color: var(--danger-color); font-weight: 500;">
+                                Deadline: ${dueText}
+                            </small>
+                        </div>
+                        <button onclick="${buttonAction}">${buttonText}</button>
+                    </div>
+                `;
+            });
+
+            document.getElementById('student-quiz-inbox').innerHTML = html || '<p style="color: var(--secondary-color);">No assignments currently available in your class inbox.</p>';
+
+        } catch (error) {
+            document.getElementById('student-quiz-inbox').innerHTML = `<p class="error">Error loading quizzes: ${error.message}</p>`;
+            console.error('Student Quiz Load Error:', error);
         }
     }
 
@@ -1530,8 +1734,13 @@ Mark Johnson"></textarea>
         try {
             const querySnapshot = await getDocs(q);
             let html = '';
+            let quizClassOptions = '<option value="">--- Select Class ---</option>'; // NEW: Quiz select options
+            classesData = {}; // Clear and rebuild class data map
+
             querySnapshot.forEach((doc) => {
                 const classData = doc.data();
+                classesData[doc.id] = classData; // Store class data
+                quizClassOptions += `<option value="${doc.id}">${classData.name}</option>`; // Add to quiz options
                 html += `
                     <div class="class-item">
                         <span><strong>${classData.name}</strong></span>
@@ -1544,6 +1753,7 @@ Mark Johnson"></textarea>
             });
             document.getElementById('classes-list').innerHTML = html || '<p>No classes found. Create one above.</p>';
             document.getElementById('classes-list-dashboard').innerHTML = html || '<p>No classes found. Manage them in the Classes tab.</p>';
+            document.getElementById('quiz-class-select').innerHTML = quizClassOptions; // NEW: Update quiz select
         } catch (error) {
             showStatus(`Error loading classes: ${error.message}. (Did you set up your Firestore Security Rules!)`, true);
         }
@@ -1777,7 +1987,7 @@ Mark Johnson"></textarea>
             
             // NEW: If we are in the tracking view, automatically load the batch input interface
             if (isTrackingView) {
-                loadStudentsForBatchTracking();
+                loadStudentsForBatchTracking(); 
             }
         } catch (error) {
             showStatus(`Error loading students: ${error.message}`, true);
@@ -2026,7 +2236,8 @@ Mark Johnson"></textarea>
             collection(db, "performanceRecords"), 
             where("classId", "==", currentClassId),
             where("teacherId", "==", currentUserId),
-            where("week", "==", week)
+            where("week", "==", week),
+            where("type", "==", "manual") // Only look at manual entries, not quiz
         );
         const snap = await getDocs(q);
         const existingRecords = {};
@@ -2051,13 +2262,13 @@ Mark Johnson"></textarea>
                         <small style="display: block; color: var(--secondary-color);">ID: ${student.studentId}</small>
                     </div>
                     <input type="number" 
-                           min="0" max="100" 
-                           placeholder="Score (0-100)" 
-                           class="weekly-score-input"
-                           value="${currentScore}"
-                           data-student-name="${student.name}"
-                           style="width: 120px; text-align: center; font-weight: 500; border: 2px solid ${scoreColor};"
-                           onchange="this.style.borderColor=this.value >= 90 ? 'var(--success-color)' : this.value >= 70 ? 'var(--accent-color)' : 'var(--danger-color)';">
+                            min="0" max="100" 
+                            placeholder="Score (0-100)" 
+                            class="weekly-score-input"
+                            value="${currentScore}"
+                            data-student-name="${student.name}"
+                            style="width: 120px; text-align: center; font-weight: 500; border: 2px solid ${scoreColor};"
+                            onchange="this.style.borderColor=this.value >= 90 ? 'var(--success-color)' : this.value >= 70 ? 'var(--accent-color)' : 'var(--danger-color)';">
                 </div>
             `;
         });
@@ -2112,6 +2323,7 @@ Mark Johnson"></textarea>
                         teacherId: currentUserId,
                         week: week,
                         score: score,
+                        type: "manual", // NEW: Flag as manual entry
                         // Nulling other non-batch fields for simplicity
                         attendance: null, 
                         midterm: null,
@@ -2147,7 +2359,7 @@ Mark Johnson"></textarea>
     
     // NEW: Dedicated function for the tracking view's feedback button, to avoid selecting the wrong element
     window.generateGeminiFeedbackTracking = () => {
-         // Get the selected student from the *new* tracking selector
+           // Get the selected student from the *new* tracking selector
         const studentDocId = document.getElementById('gemini-student-select-tracking').value;
         // Temporarily set the main modal selector value to match
         document.getElementById('gemini-student-select').value = studentDocId;
@@ -2552,6 +2764,480 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
         }
     };
 
+
+    // ----------------------------------------------------------------------
+    // 7. INTERACTIVE QUIZ SYSTEM (NEW FEATURE)
+    // ----------------------------------------------------------------------
+
+    window.openQuizCreateModal = () => {
+        if (!currentClassId) return showStatus('Please load a class in the "Classes" tab first.', true);
+        document.getElementById('quiz-create-modal').style.display = 'flex';
+        document.getElementById('quiz-title').value = '';
+        document.getElementById('quiz-class-select').value = currentClassId;
+        document.getElementById('quiz-due-week').value = '';
+        document.getElementById('quiz-questions-container').innerHTML = '';
+        quizInConstruction = []; // Clear questions array
+    }
+
+    window.closeQuizCreateModal = () => {
+        document.getElementById('quiz-create-modal').style.display = 'none';
+        quizInConstruction = [];
+    }
+
+    // Helper to render all questions in the array
+    window.renderQuestions = () => {
+        const container = document.getElementById('quiz-questions-container');
+        container.innerHTML = '';
+        quizInConstruction.forEach((q, index) => {
+            const qNum = index + 1;
+            let innerHtml = `
+                <input type="text" id="q-${index}-text" value="${q.question}" placeholder="Question ${qNum} Text" required>
+                <input type="hidden" id="q-${index}-type" value="${q.type}">
+            `;
+            
+            switch(q.type) {
+                case 'mc':
+                    q.options.forEach((opt, optIndex) => {
+                        innerHtml += `
+                            <div style="display:flex; align-items:center; margin: 5px 0;">
+                                <input type="text" id="q-${index}-opt-${optIndex}-text" value="${opt.text}" placeholder="Option ${String.fromCharCode(65 + optIndex)}" style="width: 80%; margin: 0 10px 0 0;">
+                                <label style="display:inline-flex; align-items:center; flex-grow:1; margin:0;">
+                                    <input type="radio" name="q-${index}-correct" value="${opt.id}" ${opt.id === q.correctAnswerId ? 'checked' : ''} style="width: auto;">
+                                    Correct Answer
+                                </label>
+                            </div>
+                        `;
+                    });
+                    break;
+                case 'tf':
+                    innerHtml += `
+                        <label style="display:inline-flex; align-items:center; margin-right: 20px;">
+                            <input type="radio" name="q-${index}-correct" value="True" ${q.correctAnswer === 'True' ? 'checked' : ''} style="width: auto;">
+                            True
+                        </label>
+                        <label style="display:inline-flex; align-items:center;">
+                            <input type="radio" name="q-${index}-correct" value="False" ${q.correctAnswer === 'False' ? 'checked' : ''} style="width: auto;">
+                            False
+                        </label>
+                    `;
+                    break;
+                case 'theory':
+                    innerHtml += `
+                        <label for="q-${index}-keywords" style="margin-top: 10px;">Required Keywords (Comma Separated, e.g., 'nucleus,electron,proton')</label>
+                        <textarea id="q-${index}-keywords" placeholder="Enter comma-separated required keywords (max 10 points)">${q.keywords.join(', ')}</textarea>
+                        <small style="display:block; margin-top:-5px; color: var(--danger-color);">Note: Theory questions require manual teacher grading to confirm full score.</small>
+                    `;
+                    break;
+            }
+
+            container.innerHTML += `
+                <div class="quiz-question">
+                    <strong>Question ${qNum}: (${q.type.toUpperCase()} - ${q.points} Pts)</strong>
+                    ${innerHtml}
+                    <div class="quiz-item-actions">
+                         <button onclick="removeQuestion(${index})" class="danger" style="padding: 5px 10px;">Remove</button>
+                         <button onclick="updateQuestionData(${index})" class="secondary" style="padding: 5px 10px;">Update Data</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    // Function to add a new empty question structure
+    window.addQuestion = (type) => {
+        if (quizInConstruction.length >= 20) return showStatus("Max 20 questions reached.", true);
+
+        // ⭐ FIX for clearing inputs: Update the last question data before adding a new one
+        if (quizInConstruction.length > 0) {
+            updateQuestionData(quizInConstruction.length - 1);
+        }
+
+        let newQuestion;
+        if (type === 'mc') {
+            newQuestion = {
+                type: 'mc',
+                question: 'Multiple Choice Question',
+                options: [
+                    { id: 'opt1', text: 'Option A' },
+                    { id: 'opt2', text: 'Option B' },
+                    { id: 'opt3', text: 'Option C' }
+                ],
+                correctAnswerId: 'opt1',
+                points: 5 // Default points
+            };
+        } else if (type === 'tf') {
+            newQuestion = {
+                type: 'tf',
+                question: 'True or False statement.',
+                correctAnswer: 'True',
+                points: 5
+            };
+        } else if (type === 'theory') {
+            newQuestion = {
+                type: 'theory',
+                question: 'Explain the concept of...',
+                keywords: ['explanation', 'summary'],
+                points: 10
+            };
+        } else {
+            return showStatus("Invalid question type.", true);
+        }
+        
+        quizInConstruction.push(newQuestion);
+        renderQuestions();
+    }
+
+    // Function to remove a question
+    window.removeQuestion = (index) => {
+        quizInConstruction.splice(index, 1);
+        renderQuestions();
+    }
+
+    // Function to update the data in the array from the rendered inputs
+    window.updateQuestionData = (index) => {
+        const q = quizInConstruction[index];
+        // Read question text from the input field
+        const questionTextInput = document.getElementById(`q-${index}-text`);
+        if (questionTextInput) {
+            q.question = questionTextInput.value;
+        }
+
+        if (q.type === 'mc') {
+            q.options.forEach((opt, optIndex) => {
+                const optInput = document.getElementById(`q-${index}-opt-${optIndex}-text`);
+                 if (optInput) {
+                    opt.text = optInput.value;
+                }
+            });
+            const correctRadio = document.querySelector(`input[name="q-${index}-correct"]:checked`);
+            if (correctRadio) {
+                q.correctAnswerId = correctRadio.value;
+            }
+        } else if (q.type === 'tf') {
+            const correctRadio = document.querySelector(`input[name="q-${index}-correct"]:checked`);
+            if (correctRadio) {
+                q.correctAnswer = correctRadio.value;
+            }
+        } else if (q.type === 'theory') {
+            const keywordsTextarea = document.getElementById(`q-${index}-keywords`);
+            if (keywordsTextarea) {
+                const keywordsText = keywordsTextarea.value;
+                q.keywords = keywordsText.split(',').map(k => k.trim().toLowerCase()).filter(k => k.length > 0);
+            }
+        }
+
+        // Only re-render if we explicitly click the update button, otherwise we just update the model.
+        // renderQuestions(); 
+        showStatus(`Question ${index + 1} data saved to model.`, false);
+    }
+
+
+    window.createQuiz = async () => {
+        if (currentUserRole !== 'teacher') return showStatus('Access Denied.', true);
+        if (quizInConstruction.length === 0) return showStatus('Please add at least one question.', true);
+        
+        const title = document.getElementById('quiz-title').value;
+        const classId = document.getElementById('quiz-class-select').value;
+        const assignedWeek = document.getElementById('quiz-due-week').value;
+
+        if (!title || !classId || !assignedWeek) return showStatus('Please fill out all required fields (Title, Class, Assignment Week).', true);
+
+        // Final sanity check/update on all questions before saving
+        for (let i = 0; i < quizInConstruction.length; i++) {
+            updateQuestionData(i); // Update all questions one last time
+        }
+
+        try {
+            const quizData = {
+                title: title,
+                classId: classId,
+                teacherId: currentUserId,
+                assignedWeek: assignedWeek,
+                questions: quizInConstruction, // The fully structured question array
+                totalPoints: quizInConstruction.reduce((sum, q) => sum + q.points, 0),
+                createdAt: new Date(),
+                deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString() // Example: 7 days from now
+            };
+
+            await addDoc(collection(db, "quizzes"), quizData);
+            
+            showStatus(`Quiz "${title}" created and assigned to class ${classesData[classId].name} for Week ${assignedWeek}.`, false);
+            closeQuizCreateModal();
+            loadQuizzes(); // Refresh the management list
+
+        } catch (error) {
+            showStatus(`Error creating quiz: ${error.message}`, true);
+        }
+    }
+
+    // Teacher load quizzes for management
+    window.loadQuizzes = async () => {
+        if (currentUserRole !== 'teacher') return;
+
+        const quizzesQ = query(
+            collection(db, "quizzes"),
+            where("teacherId", "==", currentUserId)
+        );
+
+        try {
+            const quizzesSnap = await getDocs(quizzesQ);
+            let html = '';
+            quizDataMap = {}; // Clear map
+
+            quizzesSnap.forEach(doc => {
+                const quiz = doc.data();
+                quizDataMap[doc.id] = quiz;
+                const className = classesData[quiz.classId]?.name || 'Unknown Class';
+
+                html += `
+                    <div class="quiz-item">
+                        <div style="flex-grow: 1;">
+                            <strong>${quiz.title}</strong>
+                            <small style="display: block; color: var(--secondary-color);">
+                                Class: ${className} | Week: ${quiz.assignedWeek} | Max Score: ${quiz.totalPoints}
+                            </small>
+                            <small style="display: block; color: var(--danger-color);">
+                                Students See: Assigned in their Inbox
+                            </small>
+                        </div>
+                        <button onclick="deleteQuiz('${doc.id}', '${quiz.title}')" class="danger">Delete Quiz</button>
+                    </div>
+                `;
+            });
+            document.getElementById('quizzes-list').innerHTML = html || '<p>No quizzes created. Click "Create New Quiz" above.</p>';
+        } catch (error) {
+            showStatus(`Error loading quizzes: ${error.message}`, true);
+        }
+    }
+
+    window.deleteQuiz = (quizId, quizTitle) => {
+        window.showConfirmation(`Are you sure you want to delete quiz **${quizTitle}**? This will remove the assignment for all students.`, async (confirmed) => {
+            if (confirmed) {
+                try {
+                    await deleteDoc(doc(db, "quizzes", quizId));
+                    // NOTE: Deleting associated performance records (submissions) is omitted for simplicity 
+                    // but would be required in a production environment via a more complex query/batch delete.
+                    showStatus('Quiz deleted.', false);
+                    loadQuizzes();
+                } catch (error) {
+                    showStatus(`Error deleting quiz: ${error.message}`, true);
+                }
+            }
+        });
+    }
+
+    // --- Student Quiz Taking Logic ---
+
+    window.takeQuiz = (quizId) => {
+        const quiz = quizDataMap[quizId];
+        if (!quiz) return showStatus('Quiz data not found.', true);
+        currentQuizForTaking = quiz; // Set the active quiz object
+
+        document.getElementById('quiz-take-title').textContent = quiz.title;
+        const className = classesData[quiz.classId]?.name || 'Your Class';
+        document.getElementById('quiz-take-meta').innerHTML = `Assigned to: **${className}** | Week: **${quiz.assignedWeek}** | Max Points: **${quiz.totalPoints}**`;
+        document.getElementById('quiz-take-status').style.display = 'none';
+
+        let html = '';
+        quiz.questions.forEach((q, index) => {
+            const qNum = index + 1;
+            
+            // Custom CSS for student-facing quiz questions is in the <style> block
+            html += `
+                <div class="quiz-question" data-question-index="${index}">
+                    <strong>${qNum}. (${q.type.toUpperCase()} - ${q.points} Pts) ${q.question}</strong>
+                    <div style="margin-top: 10px;">
+            `;
+
+            if (q.type === 'mc') {
+                q.options.forEach((opt) => {
+                    html += `
+                        <label>
+                            <input type="radio" name="q-${index}-answer" value="${opt.id}">
+                            <span>${opt.text}</span>
+                        </label>
+                    `;
+                });
+            } else if (q.type === 'tf') {
+                html += `
+                    <label style="margin-right: 20px;">
+                        <input type="radio" name="q-${index}-answer" value="True"> 
+                        <span>True</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="q-${index}-answer" value="False"> 
+                        <span>False</span>
+                    </label>
+                `;
+            } else if (q.type === 'theory') {
+                html += `
+                    <textarea name="q-${index}-answer" rows="4" placeholder="Type your answer here..." style="width: 100%;"></textarea>
+                `;
+            }
+
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('quiz-take-questions-container').innerHTML = html;
+        document.getElementById('take-quiz-modal').style.display = 'flex';
+    }
+
+    window.closeTakeQuizModal = () => {
+        document.getElementById('take-quiz-modal').style.display = 'none';
+        currentQuizForTaking = null;
+    }
+    
+    // NEW: Function to handle grading the quiz
+    window.calculateScore = (quiz, studentAnswers) => {
+        let totalScore = 0;
+        let totalMaxPoints = quiz.totalPoints;
+        let maxAutoScore = 0;
+        let theoryQuestions = [];
+
+        quiz.questions.forEach((q, index) => {
+            const studentAnswer = studentAnswers[index];
+            if (!studentAnswer) return; // Skip unanswered questions
+
+            if (q.type === 'mc') {
+                maxAutoScore += q.points;
+                if (studentAnswer === q.correctAnswerId) {
+                    totalScore += q.points;
+                }
+            } else if (q.type === 'tf') {
+                maxAutoScore += q.points;
+                if (studentAnswer === q.correctAnswer) {
+                    totalScore += q.points;
+                }
+            } else if (q.type === 'theory') {
+                // For theory questions, check if any keyword is present for partial credit (50%)
+                // The full 100% score is marked as PENDING teacher review.
+                const answerLower = studentAnswer.toLowerCase();
+                let hasKeyword = false;
+                q.keywords.forEach(keyword => {
+                    if (answerLower.includes(keyword)) {
+                        hasKeyword = true;
+                    }
+                });
+
+                if (hasKeyword) {
+                    // Assign half points for presence of at least one keyword, pending review
+                    totalScore += Math.floor(q.points / 2);
+                    theoryQuestions.push({
+                        qNum: index + 1,
+                        question: q.question,
+                        answer: studentAnswer,
+                        keywords: q.keywords,
+                        score: Math.floor(q.points / 2),
+                        max: q.points
+                    });
+                }
+                // Theory question points are included in totalMaxPoints but not maxAutoScore
+            }
+        });
+
+        const finalScorePercent = totalMaxPoints > 0 ? ((totalScore / totalMaxPoints) * 100).toFixed(0) : 0;
+        
+        return { 
+            score: parseInt(finalScorePercent), 
+            maxPoints: totalMaxPoints, 
+            rawScore: totalScore,
+            theoryQuestions: theoryQuestions
+        };
+    }
+
+    window.submitQuiz = async () => {
+        if (!currentQuizForTaking) return showStatus('Error: No active quiz to submit.', true);
+        if (!currentStudentId) return showStatus('Error: Student identity not loaded.', true);
+        
+        // Check for existing submission for this student and quiz
+        const existingQ = query(
+            collection(db, "performanceRecords"),
+            where("studentId", "==", currentStudentId),
+            where("quizId", "==", currentQuizForTaking.docId),
+            where("type", "==", "quiz")
+        );
+        const existingSnap = await getDocs(existingQ);
+        if (!existingSnap.empty) {
+            return showStatus('You have already submitted this quiz. Please review your results.', true);
+        }
+
+        const studentAnswers = [];
+        let allAnswered = true;
+        
+        // 1. Collect answers
+        currentQuizForTaking.questions.forEach((q, index) => {
+            const answerElement = document.querySelector(`[name="q-${index}-answer"]`);
+            let answer = null;
+            
+            if (q.type === 'mc' || q.type === 'tf') {
+                const checked = document.querySelector(`input[name="q-${index}-answer"]:checked`);
+                if (checked) {
+                    answer = checked.value;
+                }
+            } else if (q.type === 'theory') {
+                answer = answerElement.value.trim();
+            }
+
+            if (!answer) {
+                allAnswered = false;
+            }
+            studentAnswers.push(answer);
+        });
+
+        if (!allAnswered) {
+             // Not a critical error since some questions might be optional, but warn the user.
+             showStatus('Warning: You have not answered all questions. Only answered questions will be scored.', true);
+        }
+
+        // 2. Calculate Score
+        const results = calculateScore(currentQuizForTaking, studentAnswers);
+        
+        // 3. Prepare Submission Record
+        const submissionData = {
+            studentId: currentStudentId,
+            classId: currentQuizForTaking.classId,
+            teacherId: currentQuizForTaking.teacherId,
+            quizId: currentQuizForTaking.docId,
+            quizTitle: currentQuizForTaking.title,
+            week: currentQuizForTaking.assignedWeek, // Set week for tracking
+            score: results.score, // Calculated percentage score
+            rawScore: results.rawScore,
+            maxPoints: results.maxPoints,
+            answers: studentAnswers,
+            type: "quiz", // Flag as quiz submission
+            report: results.theoryQuestions.length > 0 ? 
+                    `Quiz submitted. Final score is an *initial* automated score (Theory questions require teacher review). Theory questions pending: ${results.theoryQuestions.length}.` :
+                    "Quiz submitted and fully graded.",
+            timestamp: new Date()
+        };
+
+        // 4. Save to Performance Records
+        try {
+            // CRITICAL: The security rules change now allows this WRITE operation
+            await addDoc(collection(db, "performanceRecords"), submissionData);
+
+            document.getElementById('quiz-take-status').className = 'success';
+            document.getElementById('quiz-take-status').style.display = 'block';
+            document.getElementById('quiz-take-status').textContent = `✅ Quiz Submitted! Your Score: ${results.score}% (Max Raw Points: ${results.maxPoints}). Your score is now recorded for Week ${currentQuizForTaking.assignedWeek}.`;
+            
+            // Optionally, disable the submit button after success
+            document.querySelector('#take-quiz-modal button[onclick="submitQuiz()"]').disabled = true;
+
+            // Refresh student dashboard to show updated score/inbox
+            loadStudentDashboard();
+            loadStudentQuizzes();
+
+        } catch (error) {
+            document.getElementById('quiz-take-status').className = 'error';
+            document.getElementById('quiz-take-status').style.display = 'block';
+            document.getElementById('quiz-take-status').textContent = `❌ Submission Failed: ${error.message}. Please check your Firebase Security Rules (performanceRecords collection).`;
+        }
+    }
+
+
     // Initial setup call
     if (!currentUserId && !currentStudentDocId) {
         window.showView('login');
@@ -2561,7 +3247,3 @@ Current Goal: ${studentsData[studentDocId].goal?.description || 'None'}
 
 </body>
 </html>
-
-
-
-
